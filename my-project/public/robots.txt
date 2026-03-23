@@ -1,0 +1,13 @@
+# ProgressCircle - robots.txt
+# Allow all search engines to index the entire website
+
+User-agent: *
+Allow: /
+
+# Disallow private/auth pages from being indexed
+Disallow: /admin
+Disallow: /payment-success
+Disallow: /battle/
+
+# Point to sitemap for full site index
+Sitemap: https://progress-circle-theta.vercel.app/sitemap.xml

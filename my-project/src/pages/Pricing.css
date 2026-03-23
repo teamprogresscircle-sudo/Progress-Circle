@@ -1,0 +1,371 @@
+/* ===== Pricing Page Styles ===== */
+
+.pricing-page {
+    min-height: 100vh;
+    padding: 2rem 1rem 4rem;
+    font-family: 'Inter', sans-serif;
+}
+
+/* Hero */
+.pricing-hero {
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto 3rem;
+}
+
+.pricing-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, rgba(168,85,247,0.2), rgba(99,102,241,0.2));
+    border: 1px solid rgba(168,85,247,0.3);
+    color: #a855f7;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 14px;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+}
+
+.pricing-hero h1 {
+    font-size: clamp(2rem, 6vw, 3rem);
+    font-weight: 900;
+    background: linear-gradient(135deg, #fff 0%, #a78bfa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 0.75rem;
+}
+
+.pricing-hero p {
+    color: rgba(255,255,255,0.55);
+    font-size: 1.05rem;
+}
+
+/* Billing Toggle */
+.billing-toggle {
+    display: inline-flex;
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 999px;
+    padding: 4px;
+    margin-top: 1.5rem;
+    gap: 2px;
+}
+
+.billing-toggle button {
+    background: transparent;
+    border: none;
+    color: rgba(255,255,255,0.5);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 22px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.billing-toggle button.active {
+    background: linear-gradient(135deg, #6c63ff, #a855f7);
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(108,99,255,0.35);
+}
+
+.savings-chip {
+    background: rgba(16,185,129,0.2);
+    color: #10b981;
+    font-size: 10px;
+    font-weight: 800;
+    padding: 2px 7px;
+    border-radius: 999px;
+}
+
+/* Cards */
+.pricing-cards {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    max-width: 860px;
+    margin: 0 auto;
+}
+
+@media (max-width: 640px) {
+    .pricing-cards { grid-template-columns: 1fr; }
+}
+
+.pricing-card {
+    border-radius: 24px;
+    padding: 2rem;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.free-card {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+}
+
+.premium-card {
+    background: linear-gradient(160deg, rgba(108,99,255,0.18) 0%, rgba(168,85,247,0.12) 100%);
+    border: 1px solid rgba(168,85,247,0.35);
+    box-shadow: 0 20px 60px rgba(108,99,255,0.2);
+}
+
+.popular-badge {
+    position: absolute;
+    top: -13px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #6c63ff, #a855f7);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    padding: 4px 16px;
+    border-radius: 999px;
+    white-space: nowrap;
+}
+
+.card-header {
+    text-align: center;
+}
+
+.plan-icon {
+    font-size: 2.5rem;
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.card-header h2 {
+    font-size: 1.5rem;
+    font-weight: 900;
+    color: #fff;
+    margin: 0;
+}
+
+.plan-desc {
+    font-size: 13px;
+    color: rgba(255,255,255,0.45);
+    margin-top: 4px;
+}
+
+/* Price */
+.price-display {
+    text-align: center;
+    display: flex;
+    align-items: baseline;
+    justify-content: center;
+    gap: 4px;
+}
+
+.price-amount {
+    font-size: 3rem;
+    font-weight: 900;
+    color: #fff;
+    line-height: 1;
+}
+
+.price-currency {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: rgba(255,255,255,0.6);
+}
+
+.price-period {
+    font-size: 0.85rem;
+    color: rgba(255,255,255,0.4);
+}
+
+.yearly-note {
+    text-align: center;
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+    margin-top: -8px;
+}
+
+/* CTA Buttons */
+.cta-btn {
+    width: 100%;
+    padding: 14px;
+    border-radius: 14px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+}
+
+.free-btn {
+    background: rgba(255,255,255,0.07);
+    color: rgba(255,255,255,0.75);
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.free-btn:hover {
+    background: rgba(255,255,255,0.11);
+}
+
+.premium-btn {
+    background: linear-gradient(135deg, #6c63ff, #a855f7);
+    color: #fff;
+    box-shadow: 0 8px 24px rgba(108,99,255,0.3);
+}
+
+.premium-btn:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 30px rgba(108,99,255,0.4);
+}
+
+.premium-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+.payment-note {
+    text-align: center;
+    font-size: 11px;
+    color: rgba(255,255,255,0.3);
+    margin-top: -6px;
+}
+
+.payment-error {
+    color: #f87171;
+    font-size: 12px;
+    text-align: center;
+    background: rgba(248,113,113,0.1);
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+/* Feature List */
+.feature-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 0.5rem;
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding-top: 1rem;
+}
+
+.feature-list li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: rgba(255,255,255,0.75);
+}
+
+.premium-active-state {
+    text-align: center;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+    border: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.premium-badge-large {
+    display: inline-block;
+    background: linear-gradient(135deg, rgba(168,85,247,0.2), rgba(99,102,241,0.2));
+    border: 1px solid rgba(168,85,247,0.3);
+    color: #a855f7;
+    font-size: 14px;
+    font-weight: 800;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 18px;
+    border-radius: 999px;
+    margin-bottom: 1rem;
+}
+
+.subscription-details {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.renewal-date {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.renewal-date strong {
+    color: #fff;
+}
+
+.cancel-btn {
+    background: transparent;
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    color: #f87171;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 1rem;
+    transition: all 0.2s ease;
+}
+
+.cancel-btn:hover {
+    background: rgba(248, 113, 113, 0.1);
+    border-color: #f87171;
+}
+
+.feature-list li.feat-unavailable {
+    opacity: 0.35;
+}
+
+.feat-check {
+    color: #10b981;
+    font-weight: 900;
+    width: 20px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.feat-cross {
+    color: rgba(255,255,255,0.2);
+    width: 20px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.feat-text {
+    width: 60px;
+    flex-shrink: 0;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: right;
+    margin-right: 4px;
+}
+
+.feat-premium {
+    color: #a855f7;
+}
+
+.feat-free {
+    color: rgba(255,255,255,0.5);
+}
+
+.feat-label {
+    flex: 1;
+}
+
+/* Footer */
+.pricing-footer {
+    text-align: center;
+    margin-top: 2.5rem;
+    color: rgba(255,255,255,0.3);
+    font-size: 12px;
+}
