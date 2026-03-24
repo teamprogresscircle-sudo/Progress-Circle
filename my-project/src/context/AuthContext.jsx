@@ -36,9 +36,20 @@ export function AuthProvider({ children }) {
 
     const register = async (name, email, password, gender = '', ref = '') => {
         const res = await authAPI.register(name, email, password, gender, ref);
+        return res.data; // Return the response so Login.jsx can handle the next step
+    };
+
+    const verifyEmail = async (email, code) => {
+        const res = await authAPI.verify(email, code);
         const { token, user: userData } = res.data.data;
         localStorage.setItem('token', token);
         setUser(userData);
+        return res.data;
+    };
+
+    const resendVerificationCode = async (email) => {
+        const res = await authAPI.resendCode(email);
+        return res.data;
     };
 
     const logout = () => {
@@ -72,7 +83,10 @@ export function AuthProvider({ children }) {
     }
 
     return (
-        <AuthContext.Provider value={{ user, setUser, login, register, logout, refreshUser, updateUser, isAuthenticated: !!user }}>
+        <AuthContext.Provider value={{ 
+            user, setUser, login, register, verifyEmail, resendVerificationCode, 
+            logout, refreshUser, updateUser, isAuthenticated: !!user 
+        }}>
             {children}
         </AuthContext.Provider>
     );

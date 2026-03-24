@@ -26,6 +26,10 @@ const protect = async (req, res, next) => {
             return res.status(401).json({ success: false, message: 'Neural link severed: User no longer exists' });
         }
 
+        if (!req.user.isVerified) {
+            return res.status(403).json({ success: false, message: 'Account not verified. Please verify your email.' });
+        }
+
         next();
     } catch (error) {
         if (error.name === 'TokenExpiredError') {

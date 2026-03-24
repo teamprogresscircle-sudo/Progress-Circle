@@ -9,4 +9,6 @@ export const authAPI = {
 
     getMe: () => client.get('/auth/me'),
     updateMe: (data) => client.put('/auth/me', data),
+    verify: (email, code) => client.post('/auth/verify', { email, code }),
+    resendCode: (email) => client.post('/auth/resend-code', { email }),
 };

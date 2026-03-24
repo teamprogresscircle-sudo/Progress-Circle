@@ -24,10 +24,12 @@
         "mongoose": "^8.2.2",
         "mongoose-field-encryption": "^7.0.1",
         "node-cron": "^4.2.1",
+        "nodemailer": "^8.0.3",
         "pdfkit": "^0.17.2",
         "web-push": "^3.6.7"
     },
     "devDependencies": {
+        "@getbrevo/brevo": "^5.0.1",
         "nodemon": "^3.1.0"
     },
     "engines": {

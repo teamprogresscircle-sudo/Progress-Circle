@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const { createSystemNotification } = require('./notificationController');
+const sendEmail = require('../utils/sendEmail');
 
 // Generate JWT
 const generateToken = (id) =>
@@ -24,6 +25,10 @@ const register = async (req, res, next) => {
             return res.status(409).json({ success: false, message: 'Email already registered' });
         }
 
+        // Generate verification code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const verificationCodeExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
+
         // Handle referral logic
         let referredBy = null;
         if (ref) {
@@ -36,12 +41,68 @@ const register = async (req, res, next) => {
         const user = await User.create({ 
             name, email, password, 
             gender: gender || '',
-            referredBy
+            referredBy,
+            verificationCode,
+            verificationCodeExpires
         });
 
+        // Send Verification Email
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'Verify your Progress Circle account',
+                message: `Your verification code is: ${verificationCode}. It expires in 10 minutes.`,
+                html: `
+                    <div style="font-family: sans-serif; padding: 20px; color: #1f2937;">
+                        <h2 style="color: #6366f1;">Welcome to the Circle!</h2>
+                        <p>Please enter the following code to verify your account:</p>
+                        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 5px;">
+                            ${verificationCode}
+                        </div>
+                        <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">This code expires in 10 minutes.</p>
+                    </div>
+                `
+            });
+        } catch (emailError) {
+            console.error('Email could not be sent', emailError);
+            // Fallback: print to console for development
+            console.log(`VERIFICATION CODE FOR ${user.email}: ${verificationCode}`);
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Verification code sent to email',
+            data: { email: user.email }
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+// @desc    Verify email with code
+// @route   POST /api/auth/verify
+// @access  Public
+const verifyEmail = async (req, res, next) => {
+    try {
+        const { email, code } = req.body;
+
+        const user = await User.findOne({ 
+            email, 
+            verificationCode: code,
+            verificationCodeExpires: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({ success: false, message: 'Invalid or expired verification code' });
+        }
+
+        user.isVerified = true;
+        user.verificationCode = undefined;
+        user.verificationCodeExpires = undefined;
+
         // Trigger referral rewards if applicable
-        if (referredBy) {
-            const referrer = await User.findById(referredBy);
+        if (user.referredBy) {
+            const referrer = await User.findById(user.referredBy);
             if (referrer) {
                 referrer.referralsCount += 1;
                 
@@ -79,6 +140,8 @@ const register = async (req, res, next) => {
             }
         }
 
+        await user.save();
+
         const token = generateToken(user._id);
 
         // Send Welcome Notification
@@ -88,9 +151,9 @@ const register = async (req, res, next) => {
             `Welcome to the Circle, ${user.name}. Your neural interface is now active. Focus well.`
         );
 
-        res.status(201).json({
+        res.status(200).json({
             success: true,
-            message: 'Account created successfully',
+            message: 'Email verified successfully',
             data: {
                 token,
                 user: {
@@ -128,6 +191,61 @@ const register = async (req, res, next) => {
     }
 };
 
+// @desc    Resend verification code
+// @route   POST /api/auth/resend-code
+// @access  Public
+const resendVerificationCode = async (req, res, next) => {
+    try {
+        const { email } = req.body;
+
+        const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+
+        if (user.isVerified) {
+            return res.status(400).json({ success: false, message: 'Account already verified' });
+        }
+
+        // Generate new code
+        const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+        const verificationCodeExpires = Date.now() + 10 * 60 * 1000;
+
+        user.verificationCode = verificationCode;
+        user.verificationCodeExpires = verificationCodeExpires;
+        await user.save();
+
+        // Send Verification Email
+        try {
+            await sendEmail({
+                email: user.email,
+                subject: 'New verification code - Progress Circle',
+                message: `Your new verification code is: ${verificationCode}`,
+                html: `
+                    <div style="font-family: sans-serif; padding: 20px; color: #1f2937;">
+                        <h2 style="color: #6366f1;">New Verification Code</h2>
+                        <p>Here is your new verification code:</p>
+                        <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 5px;">
+                            ${verificationCode}
+                        </div>
+                        <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">This code expires in 10 minutes.</p>
+                    </div>
+                `
+            });
+        } catch (emailError) {
+            console.error('Email could not be sent', emailError);
+            console.log(`RESENT VERIFICATION CODE FOR ${user.email}: ${verificationCode}`);
+        }
+
+        res.status(200).json({
+            success: true,
+            message: 'New verification code sent'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // @desc    Login user
 // @route   POST /api/auth/login
 // @access  Public
@@ -143,6 +261,42 @@ const login = async (req, res, next) => {
         const user = await User.findOne({ email }).select('+password');
         if (!user || !(await user.comparePassword(password))) {
             return res.status(401).json({ success: false, message: 'Invalid email or password' });
+        }
+
+        if (!user.isVerified) {
+            // Generate and send a new verification code
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+            user.verificationCode = verificationCode;
+            user.verificationCodeExpires = Date.now() + 10 * 60 * 1000;
+            await user.save();
+
+            try {
+                await sendEmail({
+                    email: user.email,
+                    subject: 'Verify your Progress Circle account',
+                    message: `Your verification code is: ${verificationCode}. It expires in 10 minutes.`,
+                    html: `
+                        <div style="font-family: sans-serif; padding: 20px; color: #1f2937;">
+                            <h2 style="color: #6366f1;">Welcome to the Circle!</h2>
+                            <p>Please enter the following code to verify your account:</p>
+                            <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; font-size: 24px; font-weight: bold; text-align: center; letter-spacing: 5px;">
+                                ${verificationCode}
+                            </div>
+                            <p style="margin-top: 20px; font-size: 14px; color: #6b7280;">This code expires in 10 minutes.</p>
+                        </div>
+                    `
+                });
+            } catch (emailError) {
+                console.error('Email could not be sent', emailError);
+                console.log(`VERIFICATION CODE FOR ${user.email}: ${verificationCode}`);
+            }
+
+            return res.status(403).json({ 
+                success: false, 
+                message: 'Account not verified. A new code has been sent to your email.',
+                requiresVerification: true,
+                data: { email: user.email }
+            });
         }
 
         const token = generateToken(user._id);
@@ -238,4 +392,4 @@ const getMe = async (req, res) => {
     });
 };
 
-module.exports = { register, login, getMe };
+module.exports = { register, login, getMe, verifyEmail, resendVerificationCode };

@@ -234,7 +234,13 @@ const userSchema = new mongoose.Schema(
         totalScore: {
             type: Number,
             default: 0
-        }
+        },
+        isVerified: {
+            type: Boolean,
+            default: false,
+        },
+        verificationCode: String,
+        verificationCodeExpires: Date,
     },
     { timestamps: true }
 );
