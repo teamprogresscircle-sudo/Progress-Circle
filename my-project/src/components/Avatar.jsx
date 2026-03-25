@@ -1,4 +1,6 @@
-export function Avatar({ src, name = '', size = 'md' }) {
+import React from 'react';
+
+export const Avatar = React.memo(({ src, name = '', size = 'md' }) => {
     const sizes = { sm: 32, md: 40, lg: 56, xl: 80 };
     const px = sizes[size] || 40;
     const fontSize = px * 0.35;
@@ -27,4 +29,4 @@ export function Avatar({ src, name = '', size = 'md' }) {
             {initials}
         </div>
     );
-}
+});

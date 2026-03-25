@@ -6,16 +6,15 @@ import { Avatar } from '../Avatar';
 const OperativeCard = React.memo(({ member, isMe, isHost, onAssignTask }) => {
     const isFocusing = member.status === 'focusing';
     const statusColor = isFocusing ? 'emerald' : 'amber';
-    
+
     return (
         <motion.div
             key={member._id}
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             whileHover={{ y: -4, boxShadow: `0 10px 30px rgba(0,0,0,0.3)` }}
-            className={`relative flex flex-col items-center gap-6 p-8 rounded-[2.5rem] bg-[var(--surface)] border transition-[background-color,border-color,box-shadow,transform] duration-300 overflow-hidden group ${
-                isMe ? 'border-[var(--primary)]/40 bg-[var(--primary)]/[0.03] shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-[var(--border)]/10 hover:border-[var(--text)]/20'
-            }`}
+            className={`relative flex flex-col items-center gap-6 p-8 rounded-[2.5rem] bg-[var(--surface)] border transition-[background-color,border-color,box-shadow,transform] duration-300 overflow-hidden group ${isMe ? 'border-[var(--primary)]/40 bg-[var(--primary)]/[0.03] shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-[var(--border)]/10 hover:border-[var(--text)]/20'
+                }`}
         >
             {/* Background Narrative Glow */}
             <div className={`absolute -inset-1 rounded-full blur-2xl opacity-0 group-hover:opacity-10 transition-opacity duration-1000 ${isFocusing ? 'bg-emerald-500' : 'bg-[var(--primary)]'}`} />
@@ -35,11 +34,11 @@ const OperativeCard = React.memo(({ member, isMe, isHost, onAssignTask }) => {
 
                 {/* Avatar with XP Ring Mockup */}
                 <div className="relative p-1 rounded-full border border-[var(--border)]/10">
-                    <Avatar 
-                        src={member.user?.avatar} 
-                        name={member.user?.name} 
-                        size="lg" 
-                        className="relative z-10 border-4 border-[var(--bg)]" 
+                    <Avatar
+                        src={member.user?.avatar}
+                        name={member.user?.name}
+                        size="lg"
+                        className="relative z-10 border-4 border-[var(--bg)]"
                     />
                     <svg className="absolute inset-0 -rotate-90 w-full h-full p-0.5">
                         <circle
@@ -58,11 +57,10 @@ const OperativeCard = React.memo(({ member, isMe, isHost, onAssignTask }) => {
                             strokeLinecap="round"
                         />
                     </svg>
-                    
+
                     {/* Status Indicator */}
-                    <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-[var(--bg)] z-20 ${
-                        isFocusing ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)] animate-pulse' : 'bg-amber-500'
-                    }`} />
+                    <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-[var(--bg)] z-20 ${isFocusing ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)] animate-pulse' : 'bg-amber-500'
+                        }`} />
                 </div>
             </div>
 
@@ -75,12 +73,11 @@ const OperativeCard = React.memo(({ member, isMe, isHost, onAssignTask }) => {
                         <Shield size={12} className="text-[var(--primary)]" />
                     )}
                 </div>
-                
-                <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border ${
-                    isFocusing 
-                        ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' 
+
+                <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border ${isFocusing
+                        ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
                         : 'text-[var(--text)]/20 bg-[var(--text)]/5 border-[var(--border)]/10'
-                }`}>
+                    }`}>
                     {isFocusing ? 'Protocol: High-Focus' : 'Standby Mode'}
                 </span>
 
@@ -91,10 +88,10 @@ const OperativeCard = React.memo(({ member, isMe, isHost, onAssignTask }) => {
                             <span className="text-[12px] font-black text-[var(--text)]/60">88%</span>
                         </div>
                         <div className="h-1.5 w-24 bg-[var(--text)]/[0.03] rounded-full overflow-hidden border border-[var(--border)]/10">
-                            <motion.div 
+                            <motion.div
                                 initial={{ width: 0 }}
                                 animate={{ width: '88%' }}
-                                className={`h-full ${isFocusing ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-[var(--text)]/10'}`} 
+                                className={`h-full ${isFocusing ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-[var(--text)]/10'}`}
                             />
                         </div>
                     </div>
@@ -126,7 +123,7 @@ const OperativeGrid = ({ members, currentUserId, hostId, onAssignTask }) => {
             {/* Squad Energy Collective Header */}
             <div className="relative p-8 rounded-[2rem] bg-[var(--surface)]/20 border border-[var(--border)]/5 overflow-hidden group">
                 <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary)]/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-                
+
                 <div className="flex items-center justify-between mb-6 relative z-10">
                     <div className="flex items-center gap-4">
                         <div className="p-3 rounded-2xl bg-[var(--primary)]/10 text-[var(--primary)]">
@@ -144,11 +141,11 @@ const OperativeGrid = ({ members, currentUserId, hostId, onAssignTask }) => {
                 </div>
 
                 <div className="h-2 w-full bg-[var(--text)]/[0.03] rounded-full overflow-hidden border border-[var(--border)]/10 p-0.5">
-                    <motion.div 
+                    <motion.div
                         initial={{ width: 0 }}
                         animate={{ width: `${squadEnergy}%` }}
                         transition={{ duration: 1, ease: "easeOut" }}
-                        className="h-full bg-gradient-to-r from-[var(--primary)] via-emerald-500 to-emerald-400 rounded-full shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)]" 
+                        className="h-full bg-gradient-to-r from-[var(--primary)] via-emerald-500 to-emerald-400 rounded-full shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)]"
                     />
                 </div>
             </div>
@@ -156,9 +153,9 @@ const OperativeGrid = ({ members, currentUserId, hostId, onAssignTask }) => {
             {/* Operative Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 {members.map(member => (
-                    <OperativeCard 
-                        key={member._id} 
-                        member={member} 
+                    <OperativeCard
+                        key={member._id}
+                        member={member}
                         isMe={String(member.user?._id || member.user?.id || member.user) === String(currentUserId)}
                         isHost={String(hostId) === String(currentUserId)}
                         onAssignTask={onAssignTask}

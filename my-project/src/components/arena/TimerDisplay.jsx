@@ -2,15 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Pause, CheckSquare } from 'lucide-react';
 
-const TimerDisplay = ({ 
-    isActive, 
-    startTime, 
-    duration, 
-    isPaused, 
-    isHost, 
-    onControl, 
-    onComplete, 
-    onOpenConfig 
+const TimerDisplay = ({
+    isActive,
+    startTime,
+    duration,
+    isPaused,
+    isHost,
+    onControl,
+    onComplete,
+    onOpenConfig
 }) => {
     const [localTime, setLocalTime] = useState(0);
 
@@ -53,15 +53,15 @@ const TimerDisplay = ({
         <div className="text-center space-y-12 relative scale-110">
             {/* Animated Background Rings */}
             <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-[45%] w-[500px] h-[500px] pointer-events-none overflow-hidden">
-                <motion.div 
+                <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 25, repeat: Infinity, ease: 'linear' }}
-                    className="absolute inset-0 border border-[var(--text)]/[0.03] rounded-full" 
+                    className="absolute inset-0 border border-[var(--text)]/[0.03] rounded-full"
                 />
-                <motion.div 
+                <motion.div
                     animate={{ rotate: -360 }}
                     transition={{ duration: 35, repeat: Infinity, ease: 'linear' }}
-                    className="absolute inset-10 border border-[var(--text)]/[0.015] rounded-full" 
+                    className="absolute inset-10 border border-[var(--text)]/[0.015] rounded-full"
                 />
             </div>
 
@@ -92,8 +92,8 @@ const TimerDisplay = ({
                         strokeWidth="4"
                         strokeDasharray="942"
                         initial={{ strokeDashoffset: 942 }}
-                        animate={{ 
-                            strokeDashoffset: isActive ? 942 - (942 * (localTime / (duration * 60 || 1))) : 942 
+                        animate={{
+                            strokeDashoffset: isActive ? 942 - (942 * (localTime / (duration * 60 || 1))) : 942
                         }}
                         transition={{ duration: 1, ease: "linear" }}
                         strokeLinecap="round"
@@ -103,13 +103,13 @@ const TimerDisplay = ({
 
                 <div className="absolute inset-0 flex flex-col items-center justify-center z-20">
                     <div className="flex flex-col items-center">
-                        <span 
+                        <span
                             className={`text-8xl font-black text-[var(--text)] tracking-tighter block drop-shadow-[0_0_30px_rgba(var(--primary-rgb),0.1)] transition-all duration-200 tabular-nums ${isPaused ? 'opacity-40 scale-95 blur-[1px]' : ''}`}
                         >
                             {formatTime(localTime)}
                         </span>
-                        
-                        <motion.div 
+
+                        <motion.div
                             initial={false}
                             animate={{ opacity: 1 }}
                             className="flex items-center gap-2 mt-4"
@@ -126,26 +126,26 @@ const TimerDisplay = ({
             {/* Cinematic Control Hub */}
             <AnimatePresence>
                 {isHost && (
-                    <motion.div 
+                    <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         className="flex items-center justify-center pt-8"
                     >
                         <div className="flex items-center gap-6 p-2.5 rounded-[2rem] bg-[var(--surface)]/40 border border-[var(--border)]/10 backdrop-blur-xl shadow-2xl relative overflow-hidden group">
                             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--primary)]/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-                            
+
                             {!isActive ? (
-                                <motion.button 
+                                <motion.button
                                     whileHover={{ scale: 1.05, boxShadow: `0 0 40px rgba(var(--primary-rgb),0.4)` }}
                                     whileTap={{ scale: 0.95 }}
-                                    onClick={onOpenConfig} 
+                                    onClick={onOpenConfig}
                                     className="px-14 py-5 bg-[var(--primary)] rounded-full font-black text-xs uppercase tracking-[0.3em] text-white transition-all shadow-xl shadow-[var(--primary)]/20 border border-white/10"
                                 >
                                     Initiate Deployment
                                 </motion.button>
                             ) : (
                                 <div className="flex items-center gap-6 px-4">
-                                    <motion.button 
+                                    <motion.button
                                         whileHover={{ scale: 1.1, backgroundColor: 'var(--text)/0.1' }}
                                         whileTap={{ scale: 0.9 }}
                                         onClick={() => onControl(isPaused ? 'resume' : 'pause')}
@@ -153,10 +153,10 @@ const TimerDisplay = ({
                                     >
                                         {isPaused ? <Play size={24} fill="currentColor" /> : <Pause size={24} fill="currentColor" />}
                                     </motion.button>
-                                    
+
                                     <div className="h-8 w-px bg-[var(--border)]/10" />
 
-                                    <motion.button 
+                                    <motion.button
                                         whileHover={{ scale: 1.05, backgroundColor: '#10b981', color: 'white' }}
                                         whileTap={{ scale: 0.95 }}
                                         onClick={onComplete}
@@ -166,7 +166,7 @@ const TimerDisplay = ({
                                         Secure Objective
                                     </motion.button>
 
-                                    <motion.button 
+                                    <motion.button
                                         whileHover={{ scale: 1.05, backgroundColor: '#f43f5e', color: 'white' }}
                                         whileTap={{ scale: 0.95 }}
                                         onClick={() => onControl('end')}
