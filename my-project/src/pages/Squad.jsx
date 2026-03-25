@@ -340,14 +340,8 @@ export function Squad() {
         }
     };
 
-    const enterRoom = async (room) => {
-        try {
-            const res = await api.get(`/social/rooms/${room._id}`);
-            setActiveRoom(res.data.data);
-            setMessages(res.data.data.messages || []);
-        } catch (error) {
-            toast.error('Failed to access neural bridge.');
-        }
+    const enterRoom = (room) => {
+        window.open(`/squad/focus/${room._id}`, '_blank');
     };
 
     const getTimeAgo = (date) => {

@@ -59,6 +59,8 @@ const updateProfile = async (req, res, next) => {
             updateData.themePreferences = {
                 primaryColor: themePreferences.primaryColor,
                 accentColor: themePreferences.accentColor,
+                bg: themePreferences.bg,
+                surface: themePreferences.surface,
                 mode: themePreferences.mode,
                 glassmorphism: themePreferences.glassmorphism
             };

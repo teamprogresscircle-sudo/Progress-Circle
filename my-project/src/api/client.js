@@ -18,7 +18,10 @@ client.interceptors.response.use(
     (error) => {
         if (error.response?.status === 401) {
             localStorage.removeItem('token');
-            window.location.href = '/login';
+            // Don't redirect if we're already on the login page
+            if (window.location.pathname !== '/login') {
+                window.location.href = '/login';
+            }
         }
         
         // Handle Maintenance Mode (503 Service Unavailable)

@@ -1,22 +1,31 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Zap, Timer, Trophy, X, Shield, Swords,
     Flame, Target, Pause, Play, LogOut,
-    CheckSquare, Activity, MessageSquare, Plus
+    CheckSquare, Activity, MessageSquare, Plus,
+    Users, Star, Send
 } from 'lucide-react';
 import api from '../api/client';
 import { Button } from '../components/Button';
 import { Card } from '../components/Card';
 import { Avatar } from '../components/Avatar';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { toast } from 'sonner';
 import { LoadingSpinner } from '../components/LoadingSpinner';
+
+// Elite Micro-Components
+import TimerDisplay from '../components/arena/TimerDisplay';
+import OperativeGrid from '../components/arena/OperativeGrid';
+import TacticalSidebar from '../components/arena/TacticalSidebar';
+const IntelligenceSidebar = lazy(() => import('../components/arena/IntelligenceSidebar'));
 
 export default function SquadFocusArena() {
     const { id } = useParams();
     const { user: currentUser } = useAuth();
+    const { dark, theme: userTheme } = useTheme();
     const navigate = useNavigate();
     const [room, setRoom] = useState(null);
     const [loading, setLoading] = useState(true);
@@ -37,6 +46,8 @@ export default function SquadFocusArena() {
     const [isLoaded, setIsLoaded] = useState(false);
     const [extending, setExtending] = useState(false);
     const [targetUserId, setTargetUserId] = useState(null);
+    const [sidebarTacticalOpen, setSidebarTacticalOpen] = useState(true);
+    const [sidebarIntelOpen, setSidebarIntelOpen] = useState(true);
     const [showConfigModal, setShowConfigModal] = useState(false);
     const [sessionDuration, setSessionDuration] = useState(25);
     const [pointsPop, setPointsPop] = useState({ show: false, points: 0 });
@@ -47,71 +58,52 @@ export default function SquadFocusArena() {
         fetchMyTasks();
         fetchCategories();
 
-        // Load persistent state
         const savedState = localStorage.getItem(`squad_focus_${id}_${currentUser?._id || currentUser?.id}`);
-        console.log("Loading state for", id, savedState);
         if (savedState) {
             try {
                 const { selectedIds, finished } = JSON.parse(savedState);
                 if (selectedIds) setSelectedTaskIds(selectedIds);
                 if (finished) setFinishedTasks(finished);
-            } catch (e) {
-                console.error('Failed to parse saved session state');
-            }
+            } catch (e) { console.error('Failed to parse saved session state'); }
         }
         setIsLoaded(true);
 
-        const interval = setInterval(fetchRoom, 3000);
+        // Sync server every 5s instead of 3s to reduce load
+        const interval = setInterval(fetchRoom, 5000);
         return () => clearInterval(interval);
     }, [id, currentUser]);
 
-    // Save persistent state
     useEffect(() => {
         if (!currentUser || !isLoaded) return;
-
-        const state = {
-            selectedIds: selectedTaskIds,
-            finished: finishedTasks
-        };
-        console.log("Saving state for", id, state);
+        const state = { selectedIds: selectedTaskIds, finished: finishedTasks };
         localStorage.setItem(`squad_focus_${id}_${currentUser?._id || currentUser?.id}`, JSON.stringify(state));
     }, [selectedTaskIds, finishedTasks, id, currentUser, isLoaded]);
 
-    const handleSendMessage = async (e) => {
-        if (e.key !== 'Enter' || !messageInput.trim()) return;
+    const handleSendMessage = useCallback(async (text) => {
         try {
-            const res = await api.post(`/social/rooms/${id}/chat`, { text: messageInput });
-            if (res.data.success) {
-                setRoom(res.data.data);
-                setMessageInput('');
-            }
-        } catch (err) {
-            toast.error('Message failed to send');
-        }
-    };
-    const fetchCategories = async () => {
+            const res = await api.post(`/social/rooms/${id}/chat`, { text });
+            if (res.data.success) setRoom(res.data.data);
+        } catch (err) { toast.error('Message failed to send'); }
+    }, [id]);
+
+    const fetchCategories = useCallback(async () => {
         try {
             const res = await api.get('/categories');
             if (res.data.success) setCategories(res.data.data);
-        } catch (err) {
-            console.error('Failed to fetch categories');
-        }
-    };
+        } catch (err) { console.error('Failed to fetch categories'); }
+    }, []);
 
-    const fetchMyTasks = async () => {
+    const fetchMyTasks = useCallback(async () => {
         try {
             const res = await api.get('/tasks');
             if (res.data.success) {
                 const tasks = res.data.data.filter(t => t.status !== 'completed');
                 setMyTasks(tasks);
-                // No longer auto-initializing selectedTaskIds to allow user choice
             }
-        } catch (err) {
-            console.error('Failed to fetch tasks');
-        }
-    };
+        } catch (err) { console.error('Failed to fetch tasks'); }
+    }, []);
 
-    const handleCreateTask = async (e) => {
+    const handleCreateTask = useCallback(async (e) => {
         if (e) e.preventDefault();
         if (!newTaskTitle.trim()) return;
         try {
@@ -123,69 +115,50 @@ export default function SquadFocusArena() {
                 setNewTaskTitle('');
                 toast.success('Task Created & Assigned');
             }
-        } catch (err) {
-            toast.error('Failed to create task');
-        }
-    };
+        } catch (err) { toast.error('Failed to create task'); }
+    }, [newTaskTitle]);
 
-    const handleAssignTask = async (taskId) => {
+    const handleAssignTask = useCallback(async (taskId) => {
         try {
             const battleId = room.activeBattle?._id || room.activeBattle;
-            if (!battleId) {
-                toast.error('Tactical session not active');
-                return;
-            }
-            const res = await api.post(`/social/battle/add-task/${battleId}`, {
-                taskId,
-                targetUserId
-            });
+            if (!battleId) { toast.error('Tactical session not active'); return; }
+            const res = await api.post(`/social/battle/add-task/${battleId}`, { taskId, targetUserId });
             if (res.data.success) {
                 toast.success('Mission assigned to operative');
-                // Remove from my selection if it was there
                 setSelectedTaskIds(prev => prev.filter(id => id !== taskId));
                 fetchRoom();
                 setShowTaskSelector(false);
             }
-        } catch (err) {
-            toast.error('Assignment synchronization failed');
-        }
-    };
+        } catch (err) { toast.error('Assignment synchronization failed'); }
+    }, [room?.activeBattle, targetUserId, id]);
 
-    const handleToggleTaskSelection = (taskId) => {
+    const handleToggleTaskSelection = useCallback((taskId) => {
         setSelectedTaskIds(prev => {
             const isSelecting = !prev.includes(taskId);
             const task = myTasks.find(t => t._id === taskId);
             let newSelection = [...prev];
-
             if (isSelecting) {
                 newSelection.push(taskId);
-                // If Big Task, select all children
                 if (task.isBigTask) {
                     const children = myTasks.filter(t => (t.parentId?._id || t.parentId) === taskId);
-                    children.forEach(c => {
-                        if (!newSelection.includes(c._id)) newSelection.push(c._id);
-                    });
+                    children.forEach(c => { if (!newSelection.includes(c._id)) newSelection.push(c._id); });
                 }
-                // If Child Task, ensure parent is selected
                 if (task.parentId) {
                     const pId = task.parentId?._id || task.parentId;
                     if (!newSelection.includes(pId)) newSelection.push(pId);
                 }
             } else {
                 newSelection = newSelection.filter(id => id !== taskId);
-                // If Big Task, deselect all children
                 if (task.isBigTask) {
                     const children = myTasks.filter(t => (t.parentId?._id || t.parentId) === taskId);
-                    children.forEach(c => {
-                        newSelection = newSelection.filter(id => id !== c._id);
-                    });
+                    children.forEach(c => { newSelection = newSelection.filter(id => id !== c._id); });
                 }
             }
             return newSelection;
         });
-    };
+    }, [myTasks]);
 
-    const fetchRoom = async () => {
+    const fetchRoom = useCallback(async () => {
         if (!currentUser) return;
         try {
             const res = await api.get(`/social/rooms/${id}`);
@@ -195,45 +168,21 @@ export default function SquadFocusArena() {
                 const hostId = r.host?._id || r.host?.id || r.host;
                 const currentId = currentUser?._id || currentUser?.id;
                 setIsHost(String(hostId) === String(currentId));
-
-                if (r.activeSession?.isActive && r.activeSession?.startTime) {
-                    const start = new Date(r.activeSession.startTime);
-                    const end = new Date(start.getTime() + (r.activeSession.durationMinutes * 60000));
-                    const remaining = Math.max(0, Math.floor((end - new Date()) / 1000));
-                    setTimeLeft(remaining);
-
-                    if (remaining === 0 && String(hostId) === String(currentId)) {
-                        handleCompleteSession();
-                    }
-                } else {
-                    setTimeLeft(0);
-                }
             }
-        } catch (err) {
-            console.error('Failed to sync room state');
-        } finally {
-            setLoading(false);
-        }
-    };
+        } catch (err) { console.error('Failed to sync room state'); } finally { setLoading(false); }
+    }, [id, currentUser]);
 
-    const handleCompleteSession = async () => {
+    const handleCompleteSession = useCallback(async () => {
         try {
             const res = await api.post(`/social/rooms/${id}/session/end`);
-            if (res.data.success) {
-                fetchRoom();
-                setShowSummaryModal(true);
-            }
-        } catch (err) {
-            toast.error('Failed to complete session');
-        }
-    };
+            if (res.data.success) { fetchRoom(); setShowSummaryModal(true); }
+        } catch (err) { toast.error('Failed to complete session'); }
+    }, [id, fetchRoom]);
 
-    const handleToggleTaskStatus = async (taskId) => {
+    const handleToggleTaskStatus = useCallback(async (taskId) => {
         try {
             const task = myTasks.find(t => t._id === taskId);
             const newStatus = task.status === 'completed' ? 'pending' : 'completed';
-            
-            // If in active battle, use the battle-specific route to award points
             if (room.activeBattle) {
                 const battleId = room.activeBattle._id || room.activeBattle;
                 const res = await api.patch(`/social/battle/toggle-task/${battleId}`, { taskId });
@@ -246,74 +195,45 @@ export default function SquadFocusArena() {
                         });
                         const isAssigned = myParticipant?.battleTasks?.some(bt => (bt._id || bt) === taskId);
                         const pts = isAssigned ? 50 : 10;
-                        
                         setPointsPop({ show: true, points: pts });
                         setTimeout(() => setPointsPop({ show: false, points: 0 }), 3000);
-
-                        toast.success(`Objective Secured! +${pts} XP`, {
-                            icon: <Trophy className="text-amber-400" />
-                        });
+                        toast.success(`Objective Secured! +${pts} XP`);
                         setFinishedTasks(prev => [task, ...prev]);
                     }
-                    fetchRoom();
-                    fetchMyTasks();
+                    fetchRoom(); fetchMyTasks();
                 }
             } else {
                 const res = await api.put(`/tasks/${taskId}`, { status: newStatus });
                 if (res.data.success) {
-                    if (newStatus === 'completed') {
-                        setFinishedTasks(prev => [task, ...prev]);
-                    }
-                    fetchMyTasks();
-                    fetchRoom();
+                    if (newStatus === 'completed') setFinishedTasks(prev => [task, ...prev]);
+                    fetchMyTasks(); fetchRoom();
                 }
             }
-        } catch (err) {
-            toast.error('Sync failed');
-        }
-    };
+        } catch (err) { toast.error('Sync failed'); }
+    }, [id, myTasks, room?.activeBattle, currentUser, fetchRoom, fetchMyTasks]);
 
-    const handleStartSession = async () => {
+    const handleStartSession = useCallback(async () => {
         try {
-            const res = await api.post(`/social/rooms/${id}/session/start`, {
-                duration: sessionDuration,
-                type: 'battle'
-            });
+            const res = await api.post(`/social/rooms/${id}/session/start`, { duration: sessionDuration, type: 'battle' });
             if (res.data.success) {
-                toast.success('Battle Synchronized. All operatives on standby.', {
-                    icon: <Zap className="text-amber-400" />
-                });
-                setShowConfigModal(false);
-                fetchRoom();
+                toast.success('Battle Synchronized. All operatives on standby.', { icon: <Zap className="text-amber-400" /> });
+                setShowConfigModal(false); fetchRoom();
             }
-        } catch (err) {
-            toast.error('Neural uplink failed');
-        }
-    };
+        } catch (err) { toast.error('Neural uplink failed'); }
+    }, [id, sessionDuration, fetchRoom]);
 
-    const handleControl = async (action) => {
+    const handleControl = useCallback(async (action) => {
+        if (action === 'end') { handleCompleteSession(); return; }
         try {
             const res = await api.post(`/social/rooms/${id}/session/control`, { action });
-            if (res.data.success) {
-                toast.success(`Session ${action === 'pause' ? 'Paused' : 'Resumed'}`);
-                fetchRoom();
-            }
-        } catch (err) {
-            toast.error(`Failed to ${action} session`);
-        }
-    };
-
-    const formatTime = (seconds) => {
-        const h = Math.floor(seconds / 3600);
-        const m = Math.floor((seconds % 3600) / 60);
-        const s = seconds % 60;
-        return h > 0 ? `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}` : `${m}:${s < 10 ? '0' : ''}${s}`;
-    };
+            if (res.data.success) { toast.success(`Session ${action === 'pause' ? 'Paused' : 'Resumed'}`); fetchRoom(); }
+        } catch (err) { toast.error(`Failed to ${action} session`); }
+    }, [id, fetchRoom, handleCompleteSession]);
 
     if (loading || !currentUser) return <LoadingSpinner />;
     if (!room) return <div className="text-center py-20 text-white">Squad Room not found or expired.</div>;
 
-    const me = room.members.find(p => {
+    const me = (room.members || []).find(p => {
         const pId = p.user?._id?.toString() || p.user?.id?.toString() || p.user?.toString();
         const cId = currentUser?._id?.toString() || currentUser?.id?.toString();
         return pId && cId && pId === cId;
@@ -329,428 +249,227 @@ export default function SquadFocusArena() {
     }
 
     return (
-        <div className="fixed inset-0 bg-[#070708] z-50 flex flex-col overflow-hidden">
-            {/* Minimal Header */}
-            <header className="h-16 border-b border-white/5 flex items-center justify-between px-6 bg-white/[0.02] backdrop-blur-md">
-                <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-indigo-500/10 text-indigo-500 shadow-[0_0_15px_rgba(99,102,241,0.2)]">
-                        <Swords size={18} />
-                    </div>
+        <div className="fixed inset-0 bg-[var(--bg)] z-50 flex flex-col overflow-hidden font-sans selection:bg-[var(--primary)]/30">
+            {/* Elite Glass Header */}
+            <header className="h-20 border-b border-[var(--border)]/10 flex items-center justify-between px-8 bg-[var(--surface)]/80 backdrop-blur-md z-50 relative shrink-0">
+                <div className="absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-[var(--primary)]/20 to-transparent" />
+
+                <div className="flex items-center gap-5">
+                    <motion.div 
+                        whileHover={{ rotate: 180 }}
+                        className="p-2.5 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] border border-[var(--primary)]/20 shadow-[0_0_20px_rgba(var(--primary-rgb),0.15)]"
+                    >
+                        <Swords size={20} />
+                    </motion.div>
                     <div className="flex flex-col">
-                        <h1 className="text-sm font-black uppercase tracking-[0.2em] text-white">Squad Focus <span className="text-muted opacity-50 underline decoration-indigo-500/50 underline-offset-4">ID-{id.slice(-4)}</span></h1>
-                        <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">{room.league || 'Bronze'} LEAGUE</span>
-                            <span className="text-[9px] font-bold text-white/20 uppercase tracking-widest">• {room.squadXP?.toLocaleString() || 0} XP</span>
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-lg font-black uppercase tracking-[0.25em] text-[var(--text)]">
+                                Squad Arena <span className="text-[var(--primary)]/40 font-mono text-xs ml-2 tracking-normal">SECURE-ID:{id ? id.slice(-6).toUpperCase() : 'N/A'}</span>
+                            </h1>
+                            <div className="px-2 py-0.5 rounded bg-[var(--primary)]/10 border border-[var(--primary)]/20 text-[9px] font-black text-[var(--primary)] uppercase tracking-widest">
+                                {room.league || 'Bronze'} League
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 mt-1">
+                            <div className="flex items-center gap-1.5">
+                                <Activity size={10} className="text-emerald-500" />
+                                <span className="text-[10px] font-bold text-[var(--text)]/40 uppercase tracking-wider">{(room.members || []).length} Operatives Active</span>
+                            </div>
+                            <div className="w-1 h-1 rounded-full bg-[var(--text)]/10" />
+                            <div className="flex items-center gap-1.5">
+                                <Trophy size={10} className="text-amber-500" />
+                                <span className="text-[10px] font-bold text-[var(--text)]/40 uppercase tracking-wider">{(room.squadXP || 0).toLocaleString()} Total XP</span>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="px-4 py-1.5 rounded-full bg-white/5 border border-white/10 flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full ${room.activeSession?.isActive ? 'bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-amber-500'}`} />
-                        <span className="text-[10px] font-black uppercase text-muted tracking-widest">{room.activeSession?.isActive ? 'Active Protocol' : 'Standby'}</span>
+                    <div className="flex items-center gap-2 p-1.5 bg-[var(--text)]/5 rounded-2xl border border-[var(--border)]/10">
+                        <motion.button
+                            whileHover={{ scale: 1.05, backgroundColor: 'rgba(var(--text-rgb), 0.05)' }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setSidebarTacticalOpen(!sidebarTacticalOpen)}
+                            className={`p-2 rounded-xl transition-all duration-300 ${
+                                sidebarTacticalOpen 
+                                    ? 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/20' 
+                                    : 'bg-transparent text-[var(--text)]/20 hover:text-[var(--text)]/40'
+                            }`}
+                            title="Toggle Tactical Loadout"
+                        >
+                            <Target size={18} />
+                        </motion.button>
+                        <motion.button
+                            whileHover={{ scale: 1.05, backgroundColor: 'rgba(var(--text-rgb), 0.05)' }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => setSidebarIntelOpen(!sidebarIntelOpen)}
+                            className={`p-2 rounded-xl transition-all duration-300 ${
+                                sidebarIntelOpen 
+                                    ? 'bg-[var(--primary)] text-white shadow-lg shadow-[var(--primary)]/20' 
+                                    : 'bg-transparent text-[var(--text)]/20 hover:text-[var(--text)]/40'
+                            }`}
+                            title="Toggle Intelligence Feed"
+                        >
+                            <MessageSquare size={18} />
+                        </motion.button>
                     </div>
-                    <button onClick={() => navigate('/squad')} className="p-2 text-muted hover:text-white transition-colors">
-                        <LogOut size={20} />
-                    </button>
+
+                    <div className="hidden md:flex items-center gap-3 px-5 py-2 rounded-2xl bg-[var(--text)]/5 border border-[var(--text)]/5 transition-colors">
+                        <div className={`w-2 h-2 rounded-full ${room.activeSession?.isActive ? 'bg-emerald-500 animate-pulse shadow-[0_0_10px_rgba(16,185,129,0.5)]' : 'bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.3)]'}`} />
+                        <span className="text-[10px] font-black uppercase text-[var(--text)]/60 tracking-[0.1em]">
+                            Uplink: {room.activeSession?.isActive ? 'Secured' : 'Standby'}
+                        </span>
+                    </div>
+
+                    <motion.button 
+                        whileHover={{ scale: 1.05, backgroundColor: 'rgba(244, 63, 94, 0.1)' }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => window.close()} 
+                        className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-[var(--border)]/10 text-rose-500/70 hover:text-rose-500 transition-[background-color,border-color,color,transform] duration-200 font-black text-[10px] uppercase tracking-widest bg-[var(--text)]/2"
+                    >
+                        <LogOut size={16} />
+                        Disengage
+                    </motion.button>
                 </div>
             </header>
 
-            {/* Main Content Area */}
-            <div className="flex-1 grid lg:grid-cols-4 gap-0 overflow-hidden">
-                {/* Left Sidebar: Strategic Control */}
-                <div className="lg:col-span-1 border-r border-white/5 p-6 space-y-8 overflow-y-auto pc-scrollbar bg-[#09090A]">
-                    <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                            <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
-                                <Target size={14} className="text-indigo-400" /> My Tasks
-                            </h3>
-                            <span className="text-[9px] font-black text-indigo-400 px-2 py-0.5 rounded bg-indigo-500/10 border border-indigo-500/20">{myTasks.filter(t => t.status === 'completed').length} DONE</span>
-                        </div>
-                        <div className="space-y-3">
-                            {myTasks?.filter(t => selectedTaskIds.includes(t._id)).length > 0 ?
-                                myTasks.filter(t => selectedTaskIds.includes(t._id) && !t.parentId).map((task) => (
-                                    <div key={task._id} className="space-y-2">
-                                        <div
-                                            className={`p-4 rounded-2xl bg-white/[0.03] border flex items-center justify-between gap-3 transition-all group border-white/5 ${task.isBigTask ? 'border-indigo-500/20 bg-indigo-500/[0.01]' : ''}`}
-                                        >
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                <button
-                                                    onClick={() => handleToggleTaskStatus(task._id)}
-                                                    className="p-1.5 rounded-lg transition-all bg-white/5 text-white/20 hover:text-emerald-500 hover:bg-emerald-500/10"
-                                                >
-                                                    <CheckSquare size={14} />
-                                                </button>
-                                                <div className="flex flex-col">
-                                                    <span className={`text-xs font-black truncate ${task.isBigTask ? 'text-indigo-400' : 'text-white'}`}>
-                                                        {task.title}
-                                                    </span>
-                                                    {task.isBigTask && <span className="text-[7px] font-black uppercase text-indigo-400/50">Master Mission</span>}
-                                                </div>
-                                            </div>
-                                            <div className={`w-1.5 h-1.5 rounded-full ${task.isBigTask ? 'bg-indigo-400' : 'bg-indigo-500/50'} shadow-[0_0_5px_rgba(99,102,241,0.3)]`} />
-                                        </div>
-
-                                        {/* Render Sub-tasks */}
-                                        <div className="ml-6 space-y-2">
-                                            {myTasks.filter(st => (st.parentId?._id || st.parentId) === task._id && selectedTaskIds.includes(st._id)).map(st => (
-                                                <div
-                                                    key={st._id}
-                                                    className="p-3 rounded-xl bg-white/[0.015] border border-white/5 flex items-center justify-between gap-3 group"
-                                                >
-                                                    <div className="flex items-center gap-3 overflow-hidden">
-                                                        <button
-                                                            onClick={() => handleToggleTaskStatus(st._id)}
-                                                            className="p-1.5 rounded-lg bg-white/5 text-white/10 hover:text-emerald-500 hover:bg-emerald-500/10 transition-all"
-                                                        >
-                                                            <CheckSquare size={12} />
-                                                        </button>
-                                                        <span className="text-[11px] font-bold text-white/70 truncate">{st.title}</span>
-                                                    </div>
-                                                    <div className="w-1 h-1 rounded-full bg-indigo-500/30" />
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )) : (
-                                    <div className="p-8 text-center border-2 border-dashed border-white/5 rounded-2xl">
-                                        <p className="text-[10px] font-black text-muted uppercase">No Tasks Active</p>
-                                    </div>
-                                )}
-                            <Button
-                                variant="ghost"
-                                className="w-full text-[10px] h-11 border-dashed bg-white/[0.02] border-white/5 hover:bg-indigo-500/10 hover:border-indigo-500/30"
-                                icon={Zap}
-                                onClick={() => { setShowTaskEditModal(true) }}
-                            >
-                                Edit Tasks
-                            </Button>
-                        </div>
-                    </div>
-
-                    {/* Shared Intelligence: Other Participants */}
-                    <div className="space-y-6 pt-6 border-t border-white/5">
-                        <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
-                            <Activity size={14} className="text-emerald-400" /> Squad Status
-                        </h3>
-                        <div className="space-y-8">
-                            {currentUser && room.members.filter(p => {
-                                const myId = (currentUser?._id || currentUser?.id)?.toString();
-                                const peerId = (p.user?._id || p.user?.id || p.user)?.toString();
-                                const myName = currentUser?.name?.toLowerCase().trim();
-                                const peerName = p.user?.name?.toLowerCase().trim();
-
-                                const isMe = (myId && peerId && myId === peerId) || (myName && peerName && myName === peerName);
-                                return true;
-                            }).map((peer) => {
-                                const myId = (currentUser?._id || currentUser?.id)?.toString();
-                                const peerId = (peer.user?._id || peer.user?.id || peer.user)?.toString();
-                                const isMe = (myId && peerId && myId === peerId);
-                                return (
-                                <div key={peer._id} className="space-y-3">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <Avatar src={peer.user?.avatar} name={peer.user?.name} size="xs" />
-                                            <span className="text-[11px] font-black text-white uppercase tracking-tighter">
-                                                {peer.user?.name}
-                                                {isMe && <span className="ml-1 text-indigo-400 font-bold">(YOU)</span>}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-2">
-                                            <div className={`w-1.5 h-1.5 rounded-full ${peer.status === 'focusing' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'}`} />
-                                            <span className={`text-[9px] font-black uppercase ${peer.status === 'focusing' ? 'text-emerald-400' : 'text-amber-400'}`}>{peer.status}</span>
-                                        </div>
-                                    </div>
-                                    <div className="px-3 py-2 rounded-xl bg-white/[0.01] border border-white/5 flex items-center gap-3">
-                                        <Timer size={12} className="text-white/30" />
-                                        <span className="text-[10px] font-bold text-white/60">Session Time: {Math.floor(peer.totalFocusTime / 60)}h {(peer.totalFocusTime % 60)}m</span>
-                                    </div>
-
-                                    {/* Member's Assigned Tasks */}
-                                    {room.activeBattle?.participants?.find(p => (p.user?._id || p.user) === (peer.user?._id || peer.user))?.battleTasks?.length > 0 && (
-                                        <div className="space-y-2 mt-2">
-                                            {room.activeBattle.participants.find(p => (p.user?._id || p.user) === (peer.user?._id || peer.user)).battleTasks.map(bt => (
-                                                <div key={bt._id} className="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-3 group">
-                                                    <div className="flex items-center gap-3 overflow-hidden">
-                                                        <div className={`w-5 h-5 rounded-md flex items-center justify-center ${bt.status === 'completed' ? 'bg-emerald-500/20 text-emerald-500' : 'bg-white/5 text-white/20'}`}>
-                                                            {bt.status === 'completed' ? <CheckSquare size={10} /> : <Zap size={10} />}
-                                                        </div>
-                                                        <span className={`text-[10px] font-bold truncate ${bt.status === 'completed' ? 'text-white/30 line-through' : 'text-white/70'}`}>{bt.title}</span>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-
-                                    {/* Task Assignment for Host */}
-                                    {isHost && !isMe && (
-                                        <button
-                                            onClick={() => { setTargetUserId(peer.user?._id || peer.user?.id || peer.user); setShowTaskSelector(true); }}
-                                            className="w-full py-2.5 rounded-xl border border-dashed border-white/10 text-[9px] font-black uppercase text-muted hover:text-indigo-400 hover:border-indigo-400/30 transition-all flex items-center justify-center gap-2"
-                                        >
-                                            <Plus size={10} /> Assign Task
-                                        </button>
-                                    )}
-                                </div>
-                            );
-                            })}
-                        </div>
-                    </div>
-
-                    {/* Leaderboard Section */}
-                    {room.activeBattle?.participants?.length > 0 && (
-                        <div className="space-y-6 pt-6 border-t border-white/5">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-[10px] font-black text-white/40 uppercase tracking-[0.2em] flex items-center gap-2">
-                                    <Trophy size={14} className="text-amber-400" /> Top Operatives
-                                </h3>
-                                <div className="flex items-center gap-2 px-2 py-1 rounded bg-indigo-500/10 border border-indigo-500/20">
-                                    <Star size={10} className="text-indigo-400" fill="currentColor" fillOpacity={0.2} />
-                                    <span className="text-[9px] font-black text-indigo-400 uppercase">{room.league || 'Bronze'}</span>
-                                </div>
-                            </div>
-                            <div className="space-y-4">
-                                {[...(room.activeBattle.participants || [])]
-                                    .sort((a, b) => b.pointsEarned - a.pointsEarned)
-                                    .map((p, idx) => (
-                                        <div key={p.user?._id || p.user} className="flex items-center justify-between group">
-                                            <div className="flex items-center gap-3">
-                                                <span className="text-[10px] font-black text-white/20 w-4">{idx + 1}.</span>
-                                                <Avatar src={p.user?.avatar} name={p.user?.name} size="xs" />
-                                                <span className="text-[11px] font-bold text-white/80">{p.user?.name}</span>
-                                            </div>
-                                            <div className="flex flex-col items-end">
-                                                <span className="text-[11px] font-black text-indigo-400">+{p.pointsEarned} XP</span>
-                                                <span className="text-[8px] font-black text-white/20 uppercase">{p.tasksCompleted} Missions</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                            </div>
-                        </div>
-                    )}
-                </div>
-
-                {/* Center: The Grand Arena Grid */}
-                <div className="lg:col-span-2 relative flex flex-col p-8 overflow-y-auto pc-scrollbar">
-                    <div className="max-w-3xl mx-auto w-full space-y-12">
-                        {/* Timer UI */}
-                        {/* Timer UI */}
-                        <div className="text-center space-y-8">
-                            <div className="relative w-72 h-72 mx-auto flex items-center justify-center">
-                                <svg className="w-full h-full transform -rotate-90">
-                                    <circle
-                                        cx="144"
-                                        cy="144"
-                                        r="130"
-                                        stroke="currentColor"
-                                        strokeWidth="8"
-                                        fill="transparent"
-                                        className="text-white/5"
-                                    />
-                                    <motion.circle
-                                        cx="144"
-                                        cy="144"
-                                        r="130"
-                                        stroke="currentColor"
-                                        strokeWidth="8"
-                                        fill="transparent"
-                                        strokeDasharray="816.8"
-                                        initial={{ strokeDashoffset: 816.8 }}
-                                        animate={{
-                                            strokeDashoffset: 816.8 - (816.8 * (timeLeft / (room.activeSession?.durationMinutes * 60 || 1)))
-                                        }}
-                                        transition={{ duration: 1, ease: "linear" }}
-                                        className="text-indigo-500 shadow-[0_0_20px_rgba(99,102,241,0.5)]"
-                                    />
-                                </svg>
-                                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <motion.span
-                                        animate={{
-                                            scale: room.activeSession?.isActive ? [1, 1.05, 1] : 1,
-                                            color: timeLeft > 0 && timeLeft < 300 ? ['#ffffff', '#f43f5e', '#ffffff'] : '#ffffff'
-                                        }}
-                                        transition={{ repeat: Infinity, duration: timeLeft < 300 ? 1 : 4 }}
-                                        className="text-7xl font-black tracking-tighter tabular-nums text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                                    >
-                                        {room.activeSession?.isActive ? formatTime(timeLeft) : '00:00'}
-                                    </motion.span>
-                                    <span className="text-[10px] font-black uppercase text-muted tracking-[0.3em] mt-2">Protocol {room.activeSession?.isActive ? 'Active' : 'Standby'}</span>
-                                </div>
-                            </div>
-
-                            <div className="flex items-center justify-center gap-4">
-                                {isHost && !room.activeSession?.isActive && (
-                                    <Button onClick={() => setShowConfigModal(true)} variant="primary" className="px-12 h-14 bg-indigo-600 font-extrabold shadow-xl shadow-indigo-600/20">INITIATE FOCUS</Button>
-                                )}
-                                {isHost && room.activeSession?.isActive && (
-                                    <Button icon={Pause} onClick={() => handleControl('pause')} variant="secondary" className="px-8 h-14 bg-white/5 border-white/10">PAUSE</Button>
-                                )}
-                                {isHost && room.activeSession?.isActive && (
-                                    <Button icon={X} onClick={() => handleControl('end')} className="px-8 h-14 bg-rose-600/20 border-rose-600/30 text-rose-500 hover:bg-rose-600 hover:text-white transition-all">ABORT</Button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* Roster Grid */}
-                        <div className={`grid gap-6 ${room.members.length > 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                            {room.members.map((p) => {
-                                const isCurrentUser = String(p.user?._id || p.user?.id || p.user) === String(currentUser?._id || currentUser?.id);
-                                return (
-                                    <motion.div
-                                        key={p._id}
-                                        initial={{ opacity: 0, y: 20 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className={`flex flex-col items-center gap-4 p-6 rounded-3xl bg-white/[0.02] border transition-all ${isCurrentUser ? 'border-indigo-500/30 bg-indigo-500/[0.02]' : 'border-white/5'
-                                            }`}
-                                    >
-                                        <div className="relative">
-                                            <Avatar src={p.user?.avatar} name={p.user?.name} size="lg" />
-                                            {String(room.host?._id || room.host?.id || room.host) === String(p.user?._id || p.user?.id || p.user) && (
-                                                <div className="absolute -top-1 -right-1 p-1 rounded-full bg-amber-500 shadow-lg border-2 border-[#0D0D0F]">
-                                                    <Shield size={10} className="text-white" />
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="text-center w-full">
-                                            <h4 className="text-xs font-black text-white uppercase truncate">{p.user?.name}</h4>
-                                            <div className="flex items-center justify-between mt-3 mb-1 px-1">
-                                                <span className="text-[9px] font-black text-muted uppercase">Status</span>
-                                                <span className={`text-[9px] font-black uppercase ${p.status === 'focusing' ? 'text-emerald-400' : 'text-amber-400'}`}>{p.status}</span>
-                                            </div>
-                                            <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
-                                                <motion.div
-                                                    initial={{ width: 0 }}
-                                                    animate={{ width: p.status === 'focusing' ? '100%' : '50%' }}
-                                                    className={`h-full ${isCurrentUser ? 'bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]' : (p.status === 'focusing' ? 'bg-emerald-500/50' : 'bg-amber-500/50')}`}
-                                                />
-                                            </div>
-                                        </div>
-                                    </motion.div>
-                                );
-                            })}
-                        </div>
-
-                        {/* Host Global Controls */}
-                        {isHost && (
-                            <div className="flex justify-center gap-4 pt-8 border-t border-white/5">
-                                {!room.activeSession?.isActive ? (
-                                    <Button icon={Play} onClick={() => handleStartSession(25)} className="bg-indigo-600 shadow-lg shadow-indigo-600/20 px-8 py-6 text-sm">Start 25m Focus</Button>
-                                ) : (
-                                    <Button icon={X} onClick={() => handleCompleteSession()} className="bg-emerald-600 shadow-lg shadow-emerald-600/20 px-8 py-6 text-sm">Complete Session</Button>
-                                )}
-                            </div>
-                        )}
-                    </div>
-                </div>
-
-                {/* Right Sidebar: Signal Log & Comms */}
-                <div className="lg:col-span-1 border-l border-white/5 p-6 flex flex-col overflow-hidden bg-[#09090A]">
-                    <div className="flex-1 space-y-6 overflow-y-auto pc-scrollbar pr-2">
-                        <div className="space-y-4 pt-4 max-h-[100%] flex flex-col overflow-hidden h-full">
-                            <h3 className="text-[10px] font-black text-muted uppercase tracking-[0.2em] flex items-center gap-2">
-                                <MessageSquare size={14} className="text-indigo-400" /> Squad Comm Channel
-                            </h3>
-                            <div className="flex-1 space-y-4 overflow-y-auto pc-scrollbar pr-2">
-                                {room.messages?.map((msg, i) => {
-                                    const isMe = String(msg.sender?._id || msg.sender?.id || msg.sender) === String(currentUser?._id || currentUser?.id);
-                                    return (
-                                        <div key={i} className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                                            <div className={`max-w-[85%] p-3 rounded-2xl text-[11px] font-bold ${isMe ? 'bg-indigo-500 text-white rounded-tr-none shadow-[0_0_10px_rgba(99,102,241,0.3)]' : 'bg-white/5 text-white/80 rounded-tl-none border border-white/5'
-                                                }`}>
-                                                {!isMe && <p className="text-[8px] opacity-40 uppercase mb-1">{msg.sender?.name || 'Squad Member'}</p>}
-                                                {msg.text}
-                                            </div>
-                                            <span className="text-[7px] text-muted font-black uppercase mt-1 tracking-widest">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="pt-6 border-t border-white/5 mt-auto">
-                        <div className="relative group">
-                            <MessageSquare className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-indigo-500 transition-colors" size={14} />
-                            <input
-                                type="text"
-                                value={messageInput}
-                                onChange={(e) => setMessageInput(e.target.value)}
-                                onKeyPress={handleSendMessage}
-                                placeholder="Transmit message..."
-                                className="pc-input w-full pl-11 h-12 text-xs font-bold bg-white/[0.02] focus:bg-white/[0.05]"
+            {/* Main Interactive Workspace */}
+            <div className="flex-1 grid lg:grid-cols-12 gap-0 overflow-hidden relative">
+                
+                {/* Tactical Oversight Sidebar */}
+                <AnimatePresence mode="wait">
+                    {sidebarTacticalOpen && (
+                        <motion.div
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: 'auto', opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            className="lg:col-span-3 border-r border-[var(--border)]/10 h-full overflow-hidden"
+                        >
+                            <TacticalSidebar 
+                                myTasks={myTasks}
+                                selectedTaskIds={selectedTaskIds}
+                                onToggleTaskStatus={handleToggleTaskStatus}
+                                onOpenConfig={() => setShowTaskEditModal(true)}
+                                onClose={() => setSidebarTacticalOpen(false)}
                             />
-                        </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {/* Center High-Performance Zone */}
+                <main className={`flex flex-col p-8 overflow-y-auto pc-scrollbar relative bg-[var(--bg)] min-h-0 ${
+                    sidebarTacticalOpen && sidebarIntelOpen 
+                        ? 'lg:col-span-6' 
+                        : (sidebarTacticalOpen || sidebarIntelOpen ? 'lg:col-span-9' : 'lg:col-span-12')
+                }`}>
+                    <div className="flex-1 flex flex-col items-center justify-start space-y-20 pt-12 pb-24">
+                        <TimerDisplay 
+                            isActive={room.activeSession?.isActive}
+                            startTime={room.activeSession?.startTime}
+                            duration={room.activeSession?.durationMinutes}
+                            isPaused={room.activeSession?.isPaused}
+                            isHost={isHost}
+                            onControl={handleControl}
+                            onComplete={handleCompleteSession}
+                            onOpenConfig={() => setShowConfigModal(true)}
+                        />
+
+                        <OperativeGrid 
+                            members={room.members || []}
+                            currentUserId={currentUser?._id || currentUser?.id}
+                            hostId={room.host?._id || room.host?.id || room.host}
+                            onAssignTask={(uid) => { setTargetUserId(uid); setShowTaskSelector(true); }}
+                        />
                     </div>
-                </div>
+                </main>
+
+                {/* Intelligence & Comms Sidebar (Lazy Loaded) */}
+                <AnimatePresence mode="wait">
+                    {sidebarIntelOpen && (
+                        <motion.div
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: 'auto', opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            className="lg:col-span-3 border-l border-[var(--border)]/10 h-full overflow-hidden"
+                        >
+                            <Suspense fallback={<div className="h-full bg-[var(--bg)]/40 border-l border-[var(--border)]/10 animate-pulse" />}>
+                                <IntelligenceSidebar 
+                                    messages={room.messages}
+                                    currentUser={currentUser}
+                                    onSendMessage={handleSendMessage}
+                                    participants={room.activeBattle?.participants || []}
+                                    league={room.league}
+                                    onClose={() => setSidebarIntelOpen(false)}
+                                />
+                            </Suspense>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
-            {/* Task Edit Modal Overlay */}
+            {/* Task Edit Modal (Strategic Planner) */}
             <AnimatePresence>
                 {showTaskEditModal && (
-                    <>
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setShowTaskEditModal(false)}
-                            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60]"
+                            className="absolute inset-0 bg-black/80 backdrop-blur-xl"
                         />
                         <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }}
-                            animate={{ scale: 1, opacity: 1 }}
-                            exit={{ scale: 0.95, opacity: 0 }}
-                            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-lg bg-[#0D0D0F] border border-white/10 rounded-3xl p-8 z-[61] shadow-2xl"
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className="relative w-full max-w-2xl bg-[var(--surface)] border border-[var(--border)]/10 rounded-[2.5rem] p-10 shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
                         >
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-xl font-black text-white uppercase tracking-tight flex items-center gap-3">
-                                    <Target size={20} className="text-indigo-500" /> Session Objectives
-                                </h2>
-                                <button onClick={() => setShowTaskEditModal(false)} className="text-muted hover:text-white transition-colors">
-                                    <X size={20} />
-                                </button>
-                            </div>
-
-                            {/* Rapid Task Entry & Filters */}
-                            <div className="space-y-4 mb-8">
-                                <form onSubmit={handleCreateTask} className="flex gap-2">
-                                    <div className="relative flex-1 group">
-                                        <Plus className="absolute left-4 top-1/2 -translate-y-1/2 text-muted group-focus-within:text-indigo-500 transition-colors" size={14} />
-                                        <input
-                                            type="text"
-                                            value={newTaskTitle}
-                                            onChange={(e) => setNewTaskTitle(e.target.value)}
-                                            placeholder="Transmit new objective..."
-                                            className="pc-input w-full pl-11 h-12 text-xs font-bold bg-white/[0.02] focus:bg-white/[0.05]"
-                                        />
-                                    </div>
-                                    <Button type="submit" className="h-12 px-6 bg-indigo-600 font-black text-[10px] uppercase">Add Task</Button>
-                                </form>
-
-                                <div className="flex items-center gap-4 p-3 rounded-xl bg-white/[0.02] border border-white/5">
-                                    <div className="flex items-center gap-2">
-                                        <label className="text-[10px] font-black uppercase text-muted">Category:</label>
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--primary)]/5 blur-[80px] rounded-full -mr-32 -mt-32" />
+                            
+                            <div className="relative mb-10 flex items-center justify-between">
+                                <div>
+                                    <h2 className="text-2xl font-black text-[var(--text)] uppercase tracking-tight flex items-center gap-4">
+                                        <CheckSquare className="text-[var(--primary)]" size={24} /> Strategic Planner
+                                    </h2>
+                                    <p className="text-[10px] font-black text-[var(--text)]/30 uppercase tracking-[0.3em] mt-2">Active Mission Configuration</p>
+                                </div>
+                                <div className="flex items-center gap-6">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-[9px] font-black uppercase text-[var(--text)]/20">Sector:</span>
                                         <select
                                             value={filterCategory}
                                             onChange={(e) => setFilterCategory(e.target.value)}
-                                            className="bg-transparent text-[10px] font-bold text-white outline-none border-b border-white/10 pb-1"
+                                            className="bg-transparent text-[10px] font-bold text-[var(--text)] outline-none border-b border-[var(--border)]/20 pb-1 cursor-pointer hover:border-[var(--primary)]/40 transition-colors"
                                         >
-                                            <option value="all" className="bg-[#0D0D0F]">All Sectors</option>
+                                            <option value="all" className="bg-[var(--surface)]">All Sectors</option>
                                             {categories.map(cat => (
-                                                <option key={cat._id} value={cat._id} className="bg-[#0D0D0F]">{cat.name}</option>
+                                                <option key={cat._id} value={cat._id} className="bg-[var(--surface)]">{cat.name}</option>
                                             ))}
                                         </select>
                                     </div>
-                                    <div className="w-px h-4 bg-white/10" />
                                     <button
                                         onClick={() => setFilterOnlyBig(!filterOnlyBig)}
-                                        className={`flex items-center gap-2 text-[10px] font-black uppercase transition-all ${filterOnlyBig ? 'text-indigo-400' : 'text-muted hover:text-white'}`}
+                                        className={`flex items-center gap-2 text-[10px] font-black uppercase transition-all px-3 py-1.5 rounded-lg border ${filterOnlyBig ? 'bg-[var(--primary)]/10 border-[var(--primary)]/40 text-[var(--primary)]' : 'text-[var(--text)]/40 border-transparent hover:text-[var(--text)]'}`}
                                     >
-                                        <Shield size={12} className={filterOnlyBig ? 'fill-indigo-400/20' : ''} /> Big Tasks Only
+                                        <Shield size={12} className={filterOnlyBig ? 'fill-[var(--primary)]/20' : ''} /> Epics Only
                                     </button>
                                 </div>
                             </div>
 
-                            <div className="space-y-2 max-h-80 overflow-y-auto pc-scrollbar pr-2">
-                                <h4 className="text-[10px] font-black text-muted uppercase tracking-widest mb-3">Planner Sync</h4>
+                            <form onSubmit={handleCreateTask} className="flex gap-3 mb-8 relative z-10">
+                                <div className="relative flex-1 group">
+                                    <Plus className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text)]/20 group-focus-within:text-[var(--primary)] transition-colors" size={14} />
+                                    <input
+                                        type="text"
+                                        value={newTaskTitle}
+                                        onChange={(e) => setNewTaskTitle(e.target.value)}
+                                        placeholder="Transmit new objective..."
+                                        className="pc-input w-full pl-11 h-14 text-xs font-bold bg-[var(--text)]/[0.02] focus:bg-[var(--text)]/[0.05] border border-[var(--border)]/10 focus:border-[var(--primary)]/40 rounded-xl outline-none transition-all"
+                                    />
+                                </div>
+                                <Button type="submit" className="h-14 px-6 bg-[var(--primary)] font-black text-[10px] uppercase rounded-xl">Add Task</Button>
+                            </form>
+
+                            <div className="flex-1 overflow-y-auto pc-scrollbar pr-4 space-y-4 min-h-0">
                                 {myTasks.filter(t => !t.parentId).filter(task => {
                                     if (filterOnlyBig && !task.isBigTask) return false;
                                     if (filterCategory !== 'all' && task.categoryId?._id !== filterCategory && task.categoryId !== filterCategory) return false;
@@ -760,217 +479,276 @@ export default function SquadFocusArena() {
                                     if (filterCategory !== 'all' && task.categoryId?._id !== filterCategory && task.categoryId !== filterCategory) return false;
                                     return true;
                                 }).map(task => (
-                                    <div key={task._id} className="space-y-2">
+                                    <div key={task._id} className="space-y-3">
                                         <button
                                             onClick={() => handleToggleTaskSelection(task._id)}
-                                            className={`w-full p-4 rounded-xl border text-left flex items-center justify-between transition-all group ${selectedTaskIds.includes(task._id)
-                                                    ? 'bg-indigo-500/10 border-indigo-500/40 text-white'
-                                                    : 'bg-white/[0.02] border-white/5 text-muted hover:border-white/20'
+                                            className={`w-full p-5 rounded-2xl border text-left flex items-center justify-between transition-all group ${selectedTaskIds.includes(task._id)
+                                                ? 'bg-[var(--primary)]/10 border-[var(--primary)]/40 text-[var(--text)] shadow-lg shadow-[var(--primary)]/5'
+                                                : 'bg-[var(--text)]/[0.02] border-[var(--border)]/10 text-[var(--text)]/40 hover:border-[var(--border)]/30'
                                                 }`}
                                         >
-                                            <div className="flex items-center gap-3 overflow-hidden">
-                                                <div className={`p-1.5 rounded-lg transition-all ${selectedTaskIds.includes(task._id) ? 'bg-indigo-500 text-white' : 'bg-white/5 text-white/20'
+                                            <div className="flex items-center gap-4 overflow-hidden">
+                                                <div className={`p-2 rounded-xl transition-all ${selectedTaskIds.includes(task._id) ? 'bg-[var(--primary)] text-white' : 'bg-[var(--text)]/5 text-[var(--text)]/10'
                                                     }`}>
-                                                    <CheckSquare size={14} />
+                                                    <CheckSquare size={16} />
                                                 </div>
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-bold truncate">{task.title}</span>
-                                                    {task.isBigTask && <span className="text-[8px] font-black uppercase text-indigo-400/60 ">Big Mission</span>}
+                                                    <span className="text-[13px] font-extrabold truncate">{task.title}</span>
+                                                    {task.isBigTask && <span className="text-[8px] font-extrabold uppercase text-[var(--primary)]/60 mt-0.5 tracking-widest">Mega Mission</span>}
                                                 </div>
                                             </div>
                                             {selectedTaskIds.includes(task._id) && (
-                                                <div className="w-2 h-2 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.5)]" />
+                                                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="w-2.5 h-2.5 rounded-full bg-[var(--primary)] shadow-[0_0_15px_rgba(var(--primary-rgb),0.6)]" />
                                             )}
                                         </button>
 
-                                        {/* Nested Children in Modal */}
-                                        <div className="ml-8 space-y-2 border-l border-white/5 pl-4">
+                                        {/* Sub-tasks with Elite styling */}
+                                        <div className="ml-8 space-y-2 border-l-2 border-[var(--border)]/10 pl-6">
                                             {myTasks.filter(st => (st.parentId?._id || st.parentId) === task._id).map(st => (
                                                 <button
                                                     key={st._id}
                                                     onClick={() => handleToggleTaskSelection(st._id)}
-                                                    className={`w-full p-3 rounded-lg border text-left flex items-center justify-between transition-all ${selectedTaskIds.includes(st._id)
-                                                            ? 'bg-indigo-500/5 border-indigo-500/20 text-white'
-                                                            : 'bg-white/[0.01] border-white/5 text-muted hover:border-white/10'
+                                                    className={`w-full p-4 rounded-xl border text-left flex items-center justify-between transition-all ${selectedTaskIds.includes(st._id)
+                                                        ? 'bg-[var(--primary)]/5 border-[var(--primary)]/20 text-[var(--text)]'
+                                                        : 'bg-transparent border-transparent text-[var(--text)]/30 hover:text-[var(--text)]/60'
                                                         }`}
                                                 >
-                                                    <div className="flex items-center gap-3 overflow-hidden">
-                                                        <CheckSquare size={12} className={selectedTaskIds.includes(st._id) ? 'text-indigo-400' : 'text-white/10'} />
-                                                        <span className="text-xs font-bold truncate">{st.title}</span>
+                                                    <div className="flex items-center gap-4 overflow-hidden">
+                                                        <CheckSquare size={14} className={selectedTaskIds.includes(st._id) ? 'text-[var(--primary)]' : 'text-[var(--text)]/10'} />
+                                                        <span className="text-xs font-bold truncate tracking-tight">{st.title}</span>
                                                     </div>
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
                                 )) : (
-                                    <div className="py-12 flex flex-col items-center justify-center gap-3 border-2 border-dashed border-white/5 rounded-2xl">
-                                        <Target size={24} className="text-white/10" />
-                                        <p className="text-[10px] font-black text-muted uppercase text-center">No matching data <br /> found in scanner</p>
+                                    <div className="h-64 flex flex-col items-center justify-center gap-4 border-2 border-dashed border-[var(--border)]/10 rounded-3xl bg-[var(--text)]/[0.01]">
+                                        <Target size={32} className="text-[var(--text)]/5" />
+                                        <p className="text-[10px] font-black text-[var(--text)]/20 uppercase tracking-[0.4em] text-center leading-relaxed">Intelligence Void <br /> No matching sectors detected</p>
                                     </div>
                                 )}
                             </div>
 
                             <Button
                                 variant="primary"
-                                className="w-full mt-8 h-14 bg-indigo-600 shadow-lg shadow-indigo-600/20 font-black"
+                                className="w-full mt-10 h-16 bg-[var(--primary)] shadow-2xl shadow-[var(--primary)]/20 font-black text-xs uppercase tracking-[0.3em] rounded-2xl"
                                 onClick={() => setShowTaskEditModal(false)}
                             >
-                                CLOSE SCANNER
+                                Operationalize Strategy
                             </Button>
                         </motion.div>
-                    </>
+                    </div>
                 )}
             </AnimatePresence>
 
-            {/* Session Summary Modal */}
+            {/* Session Summary Modal (After-Action Report) */}
             <AnimatePresence>
                 {showSummaryModal && finishedTasks.length > 0 && (
-                    <>
+                    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                             onClick={() => setShowSummaryModal(false)}
-                            className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[70]"
+                            className="absolute inset-0 bg-black/90 backdrop-blur-2xl"
                         />
                         <motion.div
-                            initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
-                            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-gradient-to-br from-[#121214] to-[#0A0A0B] border border-emerald-500/20 rounded-[2.5rem] p-10 z-[71] shadow-[0_0_50px_rgba(16,185,129,0.1)] text-center"
+                            initial={{ scale: 0.9, opacity: 0, y: 30 }} 
+                            animate={{ scale: 1, opacity: 1, y: 0 }} 
+                            exit={{ scale: 0.9, opacity: 0, y: 30 }}
+                            className="relative w-full max-w-xl bg-gradient-to-br from-[var(--surface)] to-[var(--bg)] border border-emerald-500/20 rounded-[3rem] p-12 shadow-[0_0_100px_rgba(16,185,129,0.15)] text-center overflow-hidden"
                         >
-                            <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(16,185,129,0.2)]">
-                                <Trophy size={32} />
-                            </div>
-                            <h2 className="text-2xl font-black text-white uppercase tracking-tight mb-2">Protocol Secured</h2>
-                            <p className="text-xs text-muted mb-8 font-bold">Your focus session has yielded results. Synergy peak detected.</p>
+                            <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
+                            
+                            <motion.div 
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: "spring", damping: 12, stiffness: 200 }}
+                                className="w-24 h-24 bg-emerald-500/10 text-emerald-500 rounded-3xl flex items-center justify-center mx-auto mb-8 shadow-[0_20px_40px_rgba(16,185,129,0.2)] border border-emerald-500/20"
+                            >
+                                <Trophy size={48} />
+                            </motion.div>
 
-                            <div className="space-y-3 mb-8 text-left max-h-60 overflow-y-auto pc-scrollbar pr-2">
-                                <h4 className="text-[10px] font-black text-emerald-500 uppercase tracking-widest mb-4 flex items-center gap-2">
-                                    <Activity size={12} /> Objectives Completed ({finishedTasks.length})
-                                </h4>
-                                {finishedTasks.map(task => (
-                                    <div key={task._id} className="p-4 rounded-2xl bg-emerald-500/[0.03] border border-emerald-500/10 flex items-center gap-4">
-                                        <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                        <span className="text-sm font-bold text-white">{task.title}</span>
-                                    </div>
+                            <h2 className="text-3xl font-black text-[var(--text)] uppercase tracking-tighter mb-3">Protocol Secured</h2>
+                            <p className="text-[10px] font-black text-emerald-500/60 mb-10 uppercase tracking-[0.4em]">After-Action Report (AAR) Available</p>
+
+                            <div className="space-y-4 mb-10 text-left max-h-72 overflow-y-auto pc-scrollbar pr-4">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h4 className="text-[10px] font-black text-[var(--text)]/30 uppercase tracking-[0.2em] flex items-center gap-3">
+                                        <Activity size={14} className="text-emerald-500" /> Objectives Neutralized
+                                    </h4>
+                                    <span className="px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-[9px] font-black text-emerald-500 uppercase">{finishedTasks.length} Units</span>
+                                </div>
+                                
+                                {finishedTasks.map((task, idx) => (
+                                    <motion.div 
+                                        key={task._id} 
+                                        initial={{ opacity: 0, x: -20 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: idx * 0.1 }}
+                                        className="p-5 rounded-2xl bg-emerald-500/[0.04] border border-emerald-500/10 flex items-center justify-between group"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                                            <span className="text-sm font-black text-[var(--text)] uppercase tracking-tight">{task.title}</span>
+                                        </div>
+                                        <div className="text-[9px] font-black text-emerald-500/40 uppercase tracking-widest">+XP RECORDED</div>
+                                    </motion.div>
                                 ))}
                             </div>
 
                             <Button
                                 variant="primary"
-                                className="w-full h-14 bg-emerald-600 shadow-lg shadow-emerald-600/20 font-black text-xs"
+                                className="w-full h-16 bg-emerald-600 shadow-xl shadow-emerald-600/30 font-black text-xs uppercase tracking-[0.3em] rounded-2xl transition-all hover:scale-[1.02]"
                                 onClick={() => setShowSummaryModal(false)}
                             >
-                                CONTINUE SQUAD FOCUS
+                                Archive & Re-engage
                             </Button>
                         </motion.div>
-                    </>
+                    </div>
                 )}
             </AnimatePresence>
 
-            <AnimatePresence>
-                {showTaskSelector && (
-                    <>
-                        <motion.div
-                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                            onClick={() => setShowTaskSelector(false)}
-                            className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60]"
-                        />
-                        <motion.div
-                            initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-[#0D0D0F] border border-white/10 rounded-3xl p-8 z-[61] shadow-2xl"
-                        >
-                            <h2 className="text-xl font-black text-white mb-6 uppercase tracking-tight flex items-center gap-3">
-                                <Target size={20} className="text-indigo-500" /> Assign Protocol
-                            </h2>
-                            <div className="space-y-2 max-h-80 overflow-y-auto pc-scrollbar pr-2">
-                                {myTasks.length > 0 ? myTasks.map(task => (
-                                    <button
-                                        key={task._id}
-                                        onClick={() => handleAssignTask(task._id)}
-                                        className="w-full p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-indigo-500/50 hover:bg-indigo-500/5 transition-all text-left flex items-center gap-3 group"
-                                    >
-                                        <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-muted group-hover:text-indigo-400 transition-colors">
-                                            <Zap size={14} />
-                                        </div>
-                                        <span className="text-sm font-bold text-white truncate">{task.title}</span>
-                                    </button>
-                                )) : (
-                                    <p className="text-center py-8 text-xs text-muted font-bold">No tasks available in your scanner.</p>
-                                )}
-                            </div>
-                            <Button variant="secondary" className="w-full mt-6 h-12" onClick={() => setShowTaskSelector(false)}>Cancel</Button>
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
-
-            {/* Leaderboard and Points Popups */}
+            {/* Rewards / Points Feedback Sequence */}
             <AnimatePresence>
                 {pointsPop.show && (
                     <motion.div
-                        initial={{ opacity: 0, y: 0, scale: 0.5 }}
-                        animate={{ opacity: 1, y: -100, scale: 1.5 }}
-                        exit={{ opacity: 0, scale: 2 }}
-                        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[100] pointer-events-none"
+                        initial={{ opacity: 0, y: 50, scale: 0.5 }}
+                        animate={{ opacity: 1, y: -150, scale: 1.2 }}
+                        exit={{ opacity: 0, scale: 2, filter: 'blur(20px)' }}
+                        className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[200] pointer-events-none"
                     >
                         <div className="flex flex-col items-center">
-                            <span className="text-6xl font-black text-amber-400 drop-shadow-[0_0_20px_rgba(251,191,36,0.5)]">+{pointsPop.points} XP</span>
-                            <span className="text-xl font-black text-white uppercase tracking-widest mt-2">Objective Secured</span>
+                            <motion.div 
+                                animate={{ rotate: [0, 10, -10, 0] }}
+                                transition={{ repeat: Infinity, duration: 2 }}
+                                className="relative"
+                            >
+                                <span className="text-8xl font-black text-amber-400 drop-shadow-[0_0_40px_rgba(251,191,36,0.8)]">+XP</span>
+                                <span className="absolute -top-10 -right-10 text-4xl font-black text-amber-500">{pointsPop.points}</span>
+                            </motion.div>
+                            <span className="text-xl font-black text-white uppercase tracking-[0.6em] mt-8 bg-black/40 backdrop-blur-md px-6 py-2 rounded-full border border-white/10">Synchronized</span>
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* Session Configuration Modal */}
+            {/* Task Selector (Mission Briefing / Assignment) */}
+            <AnimatePresence>
+                {showTaskSelector && (
+                    <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
+                        <motion.div
+                            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                            onClick={() => setShowTaskSelector(false)}
+                            className="absolute inset-0 bg-black/85 backdrop-blur-xl"
+                        />
+                        <motion.div
+                            initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+                            animate={{ scale: 1, opacity: 1, y: 0 }} 
+                            exit={{ scale: 0.95, opacity: 0, y: 20 }}
+                            className="relative w-full max-w-md bg-[var(--surface)] border border-[var(--border)]/10 rounded-[2.5rem] p-10 z-[111] shadow-2xl overflow-hidden"
+                        >
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--primary)]/10 blur-[50px] rounded-full -mr-16 -mt-16" />
+                            
+                            <h2 className="text-xl font-black text-[var(--text)] mb-8 uppercase tracking-widest flex items-center gap-4">
+                                <Target size={20} className="text-[var(--primary)]" /> Field Assignment
+                            </h2>
+                            
+                            <div className="space-y-3 max-h-96 overflow-y-auto pc-scrollbar pr-3">
+                                {myTasks.length > 0 ? myTasks.map(task => (
+                                    <motion.button
+                                        key={task._id}
+                                        whileHover={{ x: 5 }}
+                                        onClick={() => handleAssignTask(task._id)}
+                                        className="w-full p-4 rounded-2xl bg-[var(--text)]/[0.02] border border-[var(--border)]/10 hover:border-[var(--primary)]/40 hover:bg-[var(--primary)]/5 transition-all text-left flex items-center gap-4 group"
+                                    >
+                                        <div className="w-10 h-10 rounded-xl bg-[var(--text)]/5 flex items-center justify-center text-[var(--text)]/20 group-hover:text-[var(--primary)] group-hover:bg-[var(--primary)]/10 transition-all">
+                                            <Zap size={16} />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                            <span className="text-sm font-black text-[var(--text)] truncate uppercase tracking-tight">{task.title}</span>
+                                            <span className="text-[8px] font-black text-[var(--text)]/20 uppercase tracking-[0.2em] mt-1">Pending Sync</span>
+                                        </div>
+                                    </motion.button>
+                                )) : (
+                                    <div className="py-12 flex flex-col items-center justify-center gap-4">
+                                        <Activity size={32} className="text-[var(--text)]/5" />
+                                        <p className="text-[9px] font-black text-[var(--text)]/20 uppercase tracking-[0.4em] text-center">Operational Void<br/>No active protocols</p>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            <button 
+                                onClick={() => setShowTaskSelector(false)}
+                                className="w-full mt-8 py-4 text-[10px] font-black uppercase text-[var(--text)]/20 hover:text-[var(--text)]/60 transition-colors tracking-[0.4em]"
+                            >
+                                ABORT ASSIGNMENT
+                            </button>
+                        </motion.div>
+                    </div>
+                )}
+            </AnimatePresence>
+
+            {/* Session Deployment (Config) */}
             <AnimatePresence>
                 {showConfigModal && (
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+                    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4">
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             onClick={() => setShowConfigModal(false)}
-                            className="absolute inset-0 bg-black/80 backdrop-blur-xl"
+                            className="absolute inset-0 bg-black/95 backdrop-blur-3xl"
                         />
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                            initial={{ opacity: 0, scale: 0.9, y: 50 }}
                             animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                            className="relative w-full max-w-md bg-[#0D0D0F] border border-white/10 rounded-3xl p-8 shadow-2xl overflow-hidden"
+                            exit={{ opacity: 0, scale: 0.9, y: 50 }}
+                            className="relative w-full max-w-lg bg-[var(--surface)] border border-[var(--border)]/10 rounded-[3rem] p-12 shadow-[0_0_100px_rgba(var(--primary-rgb),0.2)] overflow-hidden"
                         >
-                            {/* Background Glow */}
-                            <div className="absolute -top-24 -left-24 w-48 h-48 bg-indigo-500/20 rounded-full blur-[100px]" />
+                            <div className="absolute -top-24 -left-24 w-64 h-64 bg-[var(--primary)]/10 rounded-full blur-[100px]" />
+                            <div className="absolute -bottom-24 -right-24 w-64 h-64 bg-indigo-500/10 rounded-full blur-[100px]" />
 
-                            <div className="relative space-y-8">
-                                <div className="text-center space-y-2">
-                                    <div className="w-16 h-16 bg-indigo-500/10 rounded-2xl flex items-center justify-center mx-auto border border-indigo-500/20">
-                                        <Timer className="text-indigo-400" size={32} />
-                                    </div>
-                                    <h2 className="text-2xl font-black text-white uppercase tracking-tight">Mission Briefing</h2>
-                                    <p className="text-xs font-bold text-muted uppercase tracking-widest">Select Operation Duration</p>
+                            <div className="relative space-y-12">
+                                <div className="text-center space-y-4">
+                                    <motion.div 
+                                        animate={{ rotate: 360 }}
+                                        transition={{ duration: 30, repeat: Infinity, ease: 'linear' }}
+                                        className="w-24 h-24 bg-[var(--primary)]/10 rounded-3xl flex items-center justify-center mx-auto border border-[var(--primary)]/20 shadow-2xl relative"
+                                    >
+                                        <Timer className="text-[var(--primary)]" size={40} />
+                                        <div className="absolute inset-0 border-2 border-[var(--primary)]/20 rounded-3xl animate-ping" />
+                                    </motion.div>
+                                    <h2 className="text-4xl font-black text-[var(--text)] uppercase tracking-tighter">System Deployment</h2>
+                                    <p className="text-[10px] font-black text-[var(--text)]/30 uppercase tracking-[0.5em]">Synchronizing Neural Focus Link</p>
                                 </div>
 
-                                <div className="grid grid-cols-3 gap-4">
-                                    {[25, 50, 90].map((mins) => (
-                                        <button
+                                <div className="grid grid-cols-3 gap-6">
+                                    {[25, 50, 90].map((mins, idx) => (
+                                        <motion.button
                                             key={mins}
+                                            initial={{ opacity: 0, y: 20 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: idx * 0.1 }}
                                             onClick={() => setSessionDuration(mins)}
-                                            className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-2 ${sessionDuration === mins
-                                                    ? 'bg-indigo-500/10 border-indigo-500/40 text-white'
-                                                    : 'bg-white/[0.02] border-white/5 text-muted hover:border-white/20'
+                                            className={`p-6 rounded-[2rem] border-2 transition-all flex flex-col items-center gap-3 ${sessionDuration === mins
+                                                ? 'bg-[var(--primary)]/10 border-[var(--primary)] shadow-lg shadow-[var(--primary)]/10 text-[var(--text)]'
+                                                : 'bg-[var(--text)]/[0.02] border-[var(--border)]/10 text-[var(--text)]/20 hover:border-[var(--border)]/30'
                                                 }`}
                                         >
-                                            <span className="text-xl font-black">{mins}</span>
-                                            <span className="text-[8px] font-black uppercase tracking-widest">MINS</span>
-                                        </button>
+                                            <span className="text-3xl font-black">{mins}</span>
+                                            <span className="text-[9px] font-black uppercase tracking-[0.2em] opacity-60">Minutes</span>
+                                        </motion.button>
                                     ))}
                                 </div>
 
-                                <Button
+                                <motion.button
+                                    whileHover={{ scale: 1.02 }}
+                                    whileTap={{ scale: 0.98 }}
                                     onClick={handleStartSession}
-                                    variant="primary"
-                                    className="w-full h-14 bg-indigo-600 font-extrabold text-xs uppercase tracking-[0.2em]"
+                                    className="w-full h-20 bg-[var(--primary)] shadow-2xl shadow-[var(--primary)]/30 font-black text-sm uppercase tracking-[0.4em] rounded-[2rem] text-white flex items-center justify-center gap-4 transition-all"
                                 >
-                                    Initiate Protocol
-                                </Button>
+                                    <Zap size={20} className="fill-white" />
+                                    Initiate Uplink
+                                </motion.button>
                             </div>
                         </motion.div>
                     </div>

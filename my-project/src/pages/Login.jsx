@@ -22,6 +22,7 @@ export function Login() {
     const [verificationCode, setVerificationCode] = useState('');
     const [codeArray, setCodeArray] = useState(['', '', '', '', '', '']);
     const inputRefs = useRef([]);
+    const [sessionError, setSessionError] = useState('');
     const { login, register, verifyEmail, resendVerificationCode } = useAuth();
 
     const handleCodeChange = (index, value) => {
@@ -76,6 +77,7 @@ export function Login() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
+        setSessionError('');
         try {
             if (isLogin) { 
                 await login(email, password); 
@@ -87,11 +89,14 @@ export function Login() {
                 toast.success('Verification code sent to email!'); 
             }
         } catch (err) {
+            const errorMsg = err.response?.data?.message || 'Something went wrong';
             if (err.response?.data?.requiresVerification) {
                 setIsVerifying(true);
                 toast.error('Please verify your email to continue');
             } else {
-                toast.error(err.response?.data?.message || 'Something went wrong');
+                setSessionError(errorMsg);
+                // Clear error after 6 seconds
+                setTimeout(() => setSessionError(''), 6000);
             }
         } finally { setLoading(false); }
     };
@@ -377,6 +382,30 @@ export function Login() {
                             exit={{ opacity: 0 }}
                             onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
                         >
+                            <AnimatePresence>
+                                {sessionError && (
+                                    <motion.div
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        style={{
+                                            padding: '12px 16px',
+                                            background: 'rgba(239, 68, 68, 0.1)',
+                                            border: '1px solid rgba(239, 68, 68, 0.2)',
+                                            borderRadius: '0.75rem',
+                                            color: '#fca5a5',
+                                            fontSize: '13px',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '8px'
+                                        }}
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                                        {sessionError}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                             {!isLogin && (
                                 <>
                                     <div>
