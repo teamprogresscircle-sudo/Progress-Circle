@@ -116,7 +116,7 @@ export function SidebarContent({ onClose }) {
                                 initial={{ scale: 0.95 }} animate={{ scale: 1 }}
                                 style={{ fontSize: 10, color: dark ? 'rgba(255,255,255,0.4)' : 'var(--muted)' }}
                             >
-                                <span className="font-bold text-pc-primary">{(user.totalScore || user.points || 0).toLocaleString()}</span> Score
+                                <span className="font-bold text-pc-primary">{(user.totalScore ?? 0).toLocaleString()}</span> Score
                             </motion.p>
                             <motion.p
                                 key={user.points}
@@ -312,7 +312,7 @@ function MoreDrawer({ onClose }) {
                                     initial={{ scale: 0.95 }} animate={{ scale: 1 }}
                                     style={{ fontSize: 11, color: dark ? 'rgba(255,255,255,0.4)' : 'var(--muted)' }}
                                 >
-                                    <span className="font-bold text-pc-primary">{(user.totalScore || user.points || 0).toLocaleString()}</span> Score
+                                    <span className="font-bold text-pc-primary">{(user.totalScore ?? 0).toLocaleString()}</span> Score
                                 </motion.p>
                                 <motion.p
                                     key={user.points}

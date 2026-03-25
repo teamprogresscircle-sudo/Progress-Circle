@@ -15,6 +15,49 @@ export function Info() {
                 </div>
             </div>
 
+            {/* ── Points vs Score (separate numbers) ── */}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+                <Card className="border border-[var(--border)]/30">
+                    <div className="flex items-center gap-3 mb-4">
+                        <Target className="text-emerald-400" size={24} />
+                        <h2 className="text-xl font-bold">Points vs Score — two different numbers</h2>
+                    </div>
+                    <p className="text-sm text-pc-muted leading-relaxed mb-6">
+                        In Progress Circle, <strong>Pts</strong> and <strong>Score</strong> are tracked separately. If your Score is <strong>0</strong>, the app shows <strong>0</strong> for Score even when you already have Points from other activity. They fill up through different kinds of progress.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="p-4 rounded-xl bg-[var(--surface2)]/80 border border-[var(--border)]/20">
+                            <h3 className="text-sm font-black uppercase tracking-widest text-[var(--primary)] mb-3">How you earn Points (Pts)</h3>
+                            <p className="text-xs text-pc-muted mb-3 leading-relaxed">
+                                Points are your day-to-day reward currency. Use them in the Avatar Shop and to climb <strong>League</strong> tiers. Typical ways to earn:
+                            </p>
+                            <ul className="text-sm text-pc-muted space-y-2 list-disc list-inside leading-relaxed">
+                                <li>Complete tasks (including synergy and big tasks where applicable)</li>
+                                <li>Log habits and hit goals</li>
+                                <li>Finish focus sessions (longer sessions often grant more)</li>
+                                <li>Keep streaks and hit milestone bonuses</li>
+                                <li>In <strong>Squad</strong> rooms: complete session rewards and task XP when the room session rules apply</li>
+                            </ul>
+                        </div>
+                        <div className="p-4 rounded-xl bg-[var(--surface2)]/80 border border-[var(--border)]/20">
+                            <h3 className="text-sm font-black uppercase tracking-widest text-amber-400 mb-3">How you earn Score</h3>
+                            <p className="text-xs text-pc-muted mb-3 leading-relaxed">
+                                <strong>Score</strong> (your <strong>Total Score</strong>) is the number used for <strong>global Leaderboard</strong> ranking. It reflects overall productivity over time, not every small action that grants Points.
+                            </p>
+                            <ul className="text-sm text-pc-muted space-y-2 list-disc list-inside leading-relaxed">
+                                <li>Streak and consistency bonuses (strong multipliers over time)</li>
+                                <li>Deep focus time tracked in sessions</li>
+                                <li>Squad and collaboration milestones</li>
+                                <li>Platform milestones (e.g. streak brackets, major totals)</li>
+                            </ul>
+                            <p className="text-xs text-pc-muted mt-3 italic border-t border-[var(--border)]/30 pt-3">
+                                Score is recalculated from your activity history (admin tools can run a full sync). New users may see <strong>0 Score</strong> until those rules have applied — your <strong>Pts</strong> can still grow in parallel.
+                            </p>
+                        </div>
+                    </div>
+                </Card>
+            </motion.div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* ── What is Progress Circle? ── */}
                 <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="space-y-4">
@@ -68,7 +111,7 @@ export function Info() {
                             <h2 className="text-xl font-bold">How Points Work</h2>
                         </div>
                         <p className="text-sm text-pc-muted leading-relaxed mb-4 relative z-10">
-                            Your <strong>Points</strong> are earned directly by completing actions and are used for purchasing items in the Avatar Shop. They also determine your League tier.
+                            Your <strong>Points (Pts)</strong> are earned directly by completing actions in the app. Spend them in the <strong>Avatar Shop</strong> and use them to climb <strong>League</strong> tiers. This is separate from <strong>Score</strong> — see the section above.
                         </p>
 
                         <div className="space-y-2 relative z-10 h-64 overflow-y-auto pr-2 scrollbar-none">
@@ -99,7 +142,7 @@ export function Info() {
                             <h2 className="text-xl font-bold">The League Score System</h2>
                         </div>
                         <p className="text-sm text-pc-muted leading-relaxed mb-6">
-                            Your total <strong>Points</strong> determine your <strong>League</strong> tier independently of your ranking. Reaching higher leagues proves your consistency and unlocks new prestige across the platform.
+                            Your <strong>Points</strong> total determines your <strong>League</strong> tier. <strong>Score</strong> (Total Score) is used for the <strong>Leaderboard</strong> instead — so you can have high Points and a different Score until both systems reflect your history.
                         </p>
                         
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -132,7 +175,7 @@ export function Info() {
                             <div>
                                 <h2 className="text-xl font-bold mb-2">How Leaderboard Score Works 🌟</h2>
                                 <p className="text-sm text-pc-muted leading-relaxed mb-3">
-                                    While Points are for the shop and leagues, your <strong>Total Score</strong> is what ranks you on the global Leaderboards. It is a comprehensive metric of your overall productivity calculated by:
+                                    <strong>Total Score</strong> is what ranks you on the <strong>global Leaderboard</strong>. It is not the same number as Points: you earn Score through the long-term signals below (and sync/recalculation may update it after Points have already changed).
                                 </p>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                                     <div className="p-3 bg-white/5 border border-white/5 rounded-lg">

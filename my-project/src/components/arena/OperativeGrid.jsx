@@ -1,167 +1,151 @@
 import React, { useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Flame, Activity, Zap } from 'lucide-react';
-import { Avatar } from '../Avatar';
+import { BarChart3, Users, UserPlus } from 'lucide-react';
 
-const OperativeCard = React.memo(({ member, isMe, isHost, onAssignTask }) => {
-    const isFocusing = member.status === 'focusing';
-    const statusColor = isFocusing ? 'emerald' : 'amber';
+const OperativeGrid = ({
+    members,
+    currentUserId,
+    pointsPop,
+    scoreOverrideByUser = {},
+    isHost = false,
+    hasActiveBattle = false,
+    battleParticipants = [],
+    onAssignToMember
+}) => {
+    const scoredMembers = useMemo(() => {
+        const normalized = (members || []).map((member) => {
+            const memberId = String(member.user?._id || member.user?.id || member.user || member._id);
+            const overrideScore = scoreOverrideByUser[memberId];
+            const score = Number(
+                overrideScore ??
+                member.user?.totalScore ??
+                member.totalPoints ??
+                0
+            ) || 0;
 
-    return (
-        <motion.div
-            key={member._id}
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            whileHover={{ y: -4, boxShadow: `0 10px 30px rgba(0,0,0,0.3)` }}
-            className={`relative flex flex-col items-center gap-6 p-8 rounded-[2.5rem] bg-[var(--surface)] border transition-[background-color,border-color,box-shadow,transform] duration-300 overflow-hidden group ${isMe ? 'border-[var(--primary)]/40 bg-[var(--primary)]/[0.03] shadow-[0_0_20px_rgba(var(--primary-rgb),0.1)]' : 'border-[var(--border)]/10 hover:border-[var(--text)]/20'
-                }`}
-        >
-            {/* Background Narrative Glow */}
-            <div className={`absolute -inset-1 rounded-full blur-2xl opacity-0 group-hover:opacity-10 transition-opacity duration-1000 ${isFocusing ? 'bg-emerald-500' : 'bg-[var(--primary)]'}`} />
+            return {
+                id: memberId,
+                name: member.user?.name || member.name || 'Member',
+                score
+            };
+        });
 
-            <div className="relative">
-                {/* Status Pulse Ring */}
-                <AnimatePresence>
-                    {isFocusing && (
-                        <motion.div
-                            initial={{ scale: 0.8, opacity: 0 }}
-                            animate={{ scale: [1, 1.2, 1], opacity: [0.3, 0.1, 0.3] }}
-                            transition={{ duration: 3, repeat: Infinity }}
-                            className="absolute -inset-4 rounded-full border-2 border-emerald-500/20 pointer-events-none"
-                        />
-                    )}
-                </AnimatePresence>
+        return normalized.sort((a, b) => b.score - a.score);
+    }, [members, scoreOverrideByUser]);
 
-                {/* Avatar with XP Ring Mockup */}
-                <div className="relative p-1 rounded-full border border-[var(--border)]/10">
-                    <Avatar
-                        src={member.user?.avatar}
-                        name={member.user?.name}
-                        size="lg"
-                        className="relative z-10 border-4 border-[var(--bg)]"
-                    />
-                    <svg className="absolute inset-0 -rotate-90 w-full h-full p-0.5">
-                        <circle
-                            cx="50%" cy="50%" r="48%"
-                            className="stroke-[var(--text)]/[0.05] fill-none"
-                            strokeWidth="2"
-                        />
-                        <motion.circle
-                            cx="50%" cy="50%" r="48%"
-                            className={`stroke-${statusColor}-500 fill-none`}
-                            strokeWidth="3"
-                            strokeDasharray="100"
-                            initial={{ strokeDashoffset: 100 }}
-                            animate={{ strokeDashoffset: 100 - (member.focusScore || 65) }}
-                            transition={{ duration: 1.5, ease: "easeOut" }}
-                            strokeLinecap="round"
-                        />
-                    </svg>
+    const stakedCountByUser = useMemo(() => {
+        const map = {};
+        (battleParticipants || []).forEach((p) => {
+            const uid = String(p.user?._id || p.user?.id || p.user);
+            if (!uid) return;
+            map[uid] = Array.isArray(p.battleTasks) ? p.battleTasks.length : 0;
+        });
+        return map;
+    }, [battleParticipants]);
 
-                    {/* Status Indicator */}
-                    <div className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-4 border-[var(--bg)] z-20 ${isFocusing ? 'bg-emerald-500 shadow-[0_0_15px_rgba(16,185,129,0.6)] animate-pulse' : 'bg-amber-500'
-                        }`} />
-                </div>
-            </div>
-
-            <div className="text-center w-full min-w-0 z-10">
-                <div className="flex items-center justify-center gap-2 mb-1">
-                    <h4 className="text-[14px] font-black text-[var(--text)] uppercase truncate tracking-tight">
-                        {member.user?.name}
-                    </h4>
-                    {String(member.isHost || member.role === 'host') === 'true' && (
-                        <Shield size={12} className="text-[var(--primary)]" />
-                    )}
-                </div>
-
-                <span className={`text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-full border ${isFocusing
-                        ? 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20'
-                        : 'text-[var(--text)]/20 bg-[var(--text)]/5 border-[var(--border)]/10'
-                    }`}>
-                    {isFocusing ? 'Protocol: High-Focus' : 'Standby Mode'}
-                </span>
-
-                <div className="mt-8 pt-6 border-t border-[var(--border)]/5 space-y-4">
-                    <div className="flex justify-between items-end">
-                        <div className="text-left">
-                            <span className="text-[8px] font-black uppercase text-[var(--text)]/20 tracking-widest block mb-1">Synergy</span>
-                            <span className="text-[12px] font-black text-[var(--text)]/60">88%</span>
-                        </div>
-                        <div className="h-1.5 w-24 bg-[var(--text)]/[0.03] rounded-full overflow-hidden border border-[var(--border)]/10">
-                            <motion.div
-                                initial={{ width: 0 }}
-                                animate={{ width: '88%' }}
-                                className={`h-full ${isFocusing ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.3)]' : 'bg-[var(--text)]/10'}`}
-                            />
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Tactical Action Overlay (Visible to Host) */}
-            {isHost && !isMe && (
-                <motion.button
-                    whileHover={{ scale: 1.05, backgroundColor: 'rgba(var(--primary-rgb), 0.1)' }}
-                    onClick={() => onAssignTask(member.user?._id || member.user?.id || member.user)}
-                    className="mt-4 w-full py-3 rounded-2xl border border-dashed border-[var(--border)]/20 text-[9px] font-black uppercase text-[var(--text)]/30 hover:text-[var(--primary)] hover:border-[var(--primary)]/40 transition-all flex items-center justify-center gap-2"
-                >
-                    <Zap size={12} /> Assign Directive
-                </motion.button>
-            )}
-        </motion.div>
+    const maxScore = useMemo(
+        () => Math.max(1, ...scoredMembers.map((member) => member.score)),
+        [scoredMembers]
     );
-});
 
-const OperativeGrid = ({ members, currentUserId, hostId, onAssignTask }) => {
-    const squadEnergy = useMemo(() => {
-        const active = members.filter(m => m.status === 'focusing').length;
-        return (active / Math.max(1, members.length)) * 100;
-    }, [members]);
+    const canUseAssign = typeof onAssignToMember === 'function';
+    const showAddOrAssign = (member) => {
+        if (!hasActiveBattle || !canUseAssign) return false;
+        const isMe = String(member.id) === String(currentUserId);
+        if (isMe) return true;
+        return isHost;
+    };
 
     return (
-        <div className="w-full space-y-12">
-            {/* Squad Energy Collective Header */}
-            <div className="relative p-8 rounded-[2rem] bg-[var(--surface)]/20 border border-[var(--border)]/5 overflow-hidden group">
-                <div className="absolute inset-0 bg-gradient-to-r from-[var(--primary)]/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-1000" />
-
-                <div className="flex items-center justify-between mb-6 relative z-10">
-                    <div className="flex items-center gap-4">
-                        <div className="p-3 rounded-2xl bg-[var(--primary)]/10 text-[var(--primary)]">
-                            <Flame size={20} className={squadEnergy > 0 ? 'animate-bounce' : ''} />
-                        </div>
-                        <div>
-                            <h3 className="text-[12px] font-black text-[var(--text)] uppercase tracking-[0.3em]">Collective Squad Energy</h3>
-                            <p className="text-[9px] font-bold text-[var(--text)]/30 uppercase tracking-[0.1em] mt-1">Multi-Operative Focus Synchronization</p>
-                        </div>
+        <div className="w-full max-w-none px-1 sm:px-2 mt-auto">
+            <section className="rounded-2xl sm:rounded-3xl bg-[var(--surface)]/90 border border-[var(--border)]/15 p-5 sm:p-7 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3 mb-5 sm:mb-6">
+                    <div className="p-2.5 rounded-xl bg-[var(--primary)]/10 text-[var(--primary)] shrink-0">
+                        <BarChart3 size={18} />
                     </div>
-                    <div className="text-right">
-                        <span className="text-2xl font-black text-[var(--text)]">{Math.round(squadEnergy)}%</span>
-                        <span className="block text-[8px] font-black text-emerald-500 uppercase tracking-widest mt-1">Sync Peak</span>
+                    <div className="min-w-0 flex-1">
+                        <h3 className="text-[13px] font-bold text-[var(--text)] uppercase tracking-wide font-outfit">
+                            Room scores
+                        </h3>
+                        <p className="text-[11px] text-[var(--text)]/45 font-inter mt-0.5 leading-snug">
+                            Total score (profile) for everyone in this room.
+                            {hasActiveBattle && (
+                                <span className="text-[var(--text)]/55">
+                                    {' '}
+                                    Use <span className="font-semibold text-[var(--text)]/70">Add</span> on <em>your</em> row to attach your tasks to this session.
+                                    {isHost && ' As host, use Assign on others’ rows to give them tasks or delegate yours.'}
+                                </span>
+                            )}
+                        </p>
                     </div>
                 </div>
 
-                <div className="h-2 w-full bg-[var(--text)]/[0.03] rounded-full overflow-hidden border border-[var(--border)]/10 p-0.5">
-                    <motion.div
-                        initial={{ width: 0 }}
-                        animate={{ width: `${squadEnergy}%` }}
-                        transition={{ duration: 1, ease: "easeOut" }}
-                        className="h-full bg-gradient-to-r from-[var(--primary)] via-emerald-500 to-emerald-400 rounded-full shadow-[0_0_20px_rgba(var(--primary-rgb),0.3)]"
-                    />
-                </div>
-            </div>
-
-            {/* Operative Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {members.map(member => (
-                    <OperativeCard
-                        key={member._id}
-                        member={member}
-                        isMe={String(member.user?._id || member.user?.id || member.user) === String(currentUserId)}
-                        isHost={String(hostId) === String(currentUserId)}
-                        onAssignTask={onAssignTask}
-                    />
-                ))}
-            </div>
+                {scoredMembers.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-10 text-center rounded-xl border border-dashed border-[var(--border)]/20 bg-[var(--bg)]/30">
+                        <Users size={28} className="text-[var(--text)]/15 mb-2" />
+                        <p className="text-[12px] font-medium text-[var(--text)]/45">No members to show yet</p>
+                    </div>
+                ) : (
+                    <div className="space-y-3">
+                        {scoredMembers.map((member) => {
+                            const width = Math.max(6, (member.score / maxScore) * 100);
+                            const isMe = String(member.id) === String(currentUserId);
+                            const staked = stakedCountByUser[member.id] ?? 0;
+                            const showBtn = showAddOrAssign(member);
+                            return (
+                                <div
+                                    key={member.id}
+                                    className="relative rounded-xl border border-[var(--border)]/10 bg-[var(--bg)]/20 p-3 sm:p-3.5"
+                                >
+                                    <div className="flex flex-col gap-3 sm:grid sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:gap-3">
+                                        <div className="min-w-0 flex-1 space-y-2">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <span className="text-[12px] font-semibold text-[var(--text)]/90 truncate">
+                                                    {member.name}
+                                                    {isMe && (
+                                                        <span className="ml-1.5 text-[10px] font-medium text-[var(--primary)]">(you)</span>
+                                                    )}
+                                                </span>
+                                                {showBtn && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => onAssignToMember(member.id)}
+                                                        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--primary)]/12 border border-[var(--primary)]/25 text-[var(--primary)] text-[11px] font-semibold hover:bg-[var(--primary)]/20 transition-colors"
+                                                        title={isMe ? 'Add your tasks to this session' : `Assign tasks for ${member.name}`}
+                                                    >
+                                                        <UserPlus size={14} />
+                                                        {isMe ? 'Add' : 'Assign'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <div className="grid grid-cols-[1fr_auto] items-center gap-3">
+                                                <div className="h-2.5 sm:h-3 rounded-full bg-[var(--surface2)] border border-[var(--border)]/20 overflow-hidden min-w-0">
+                                                    <div
+                                                        className="h-full rounded-full bg-gradient-to-r from-[var(--primary)]/80 to-[var(--primary)] transition-[width] duration-500 ease-out"
+                                                        style={{ width: `${width}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-[12px] font-bold text-[var(--text)]/70 tabular-nums shrink-0">
+                                                    {member.score}
+                                                </span>
+                                            </div>
+                                            {hasActiveBattle && staked > 0 && (
+                                                <p className="text-[10px] text-[var(--text)]/40 font-inter">
+                                                    {staked} task{staked === 1 ? '' : 's'} in this session
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {isMe && pointsPop?.show && (
+                                        <span className="absolute -top-1 right-3 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                                            +{pointsPop.points} XP
+                                        </span>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+            </section>
         </div>
     );
 };

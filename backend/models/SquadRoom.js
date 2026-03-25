@@ -32,7 +32,8 @@ const squadRoomSchema = new mongoose.Schema({
         startTime: { type: Date },
         durationMinutes: { type: Number },
         type: { type: String, enum: ['focus', 'battle', 'project'], default: 'focus' },
-        isActive: { type: Boolean, default: false }
+        isActive: { type: Boolean, default: false },
+        isPaused: { type: Boolean, default: false }
     },
     activeBattle: { type: mongoose.Schema.Types.ObjectId, ref: 'Battle' },
     isPrivate: {

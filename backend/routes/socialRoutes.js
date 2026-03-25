@@ -4,8 +4,8 @@ const { protect } = require('../middleware/auth');
 const {
     searchUsers, getFriends,
     sendFriendRequest, acceptFriendRequest, rejectFriendRequest, removeFriend,
-    createRoom, getRooms, getRoom, joinRoom, acceptRoomInvite, rejectRoomInvite,
-    inviteToRoom, leaveRoom, deleteRoom, sendRoomMessage, updateMemberStatus, startRoomSession, completeSquadSession,
+    createRoom, getRooms, getRoom, getMemberTasksForRoomHost, joinRoom, acceptRoomInvite, rejectRoomInvite,
+    inviteToRoom, leaveRoom, deleteRoom, sendRoomMessage, updateMemberStatus, startRoomSession, completeSquadSession, abortSquadSession, roomSessionControl,
     getGlobalSquadLeaderboard, getNotifications, markNotificationToasted, clearNotifications, deleteNotification, clearSynergyData,
     inviteToBattle, respondToBattle, getActiveBattles, getBattle, toggleTaskStatus, addTaskToBattle,
     getSquadStats, getSquadActivity
@@ -31,6 +31,9 @@ router.post('/rooms/leave/:id', protect, leaveRoom);
 router.delete('/rooms/:id', protect, deleteRoom);
 router.post('/rooms/:id/start', protect, startRoomSession);
 router.post('/rooms/:id/complete', protect, completeSquadSession);
+router.post('/rooms/:id/abort', protect, abortSquadSession);
+router.post('/rooms/:id/session/control', protect, roomSessionControl);
+router.get('/rooms/:id/member-tasks/:userId', protect, getMemberTasksForRoomHost);
 router.get('/rooms/:id', protect, getRoom);
 router.post('/rooms/:id/chat', protect, sendRoomMessage);
 router.patch('/rooms/:id/status', protect, updateMemberStatus);

@@ -5,6 +5,27 @@ const Task = require('../models/Task');
 const SquadRoom = require('../models/SquadRoom');
 const SquadActivity = require('../models/SquadActivity');
 
+/** Decrypt mongoose-field-encryption fields on Task docs (no-op for plain objects missing the hook). */
+const ensureDecrypted = (task) => {
+    if (task && typeof task.decryptFieldsSync === 'function') {
+        try {
+            task.decryptFieldsSync();
+        } catch (e) {
+            // Already decrypted or failure
+        }
+    }
+    return task;
+};
+
+const taskDocToPlain = (doc) => {
+    if (!doc) return doc;
+    ensureDecrypted(doc);
+    if (doc.parentId && typeof doc.parentId === 'object' && doc.parentId.decryptFieldsSync) {
+        ensureDecrypted(doc.parentId);
+    }
+    return doc.toObject ? doc.toObject() : doc;
+};
+
 // @desc    Search for users
 // @route   GET /api/social/search
 // @access  Private
@@ -168,6 +189,26 @@ const refreshSquadScore = async (roomId) => {
     } catch (err) {
         console.error('Squad Score Refresh Failed:', err);
     }
+};
+
+/** $inc bypasses User pre('save'), so totalScore stays wrong. Load + .save() to recompute totalScore. */
+const applyUserSquadPointsDelta = async (userId, delta) => {
+    const user = await User.findById(userId);
+    if (!user) return;
+    user.socialStats = user.socialStats || {};
+    user.socialStats.squadPoints = Math.max(0, (user.socialStats.squadPoints || 0) + delta);
+    await user.save();
+};
+
+const applySessionCompletionRewards = async (userId, sessionDuration, xpReward) => {
+    const user = await User.findById(userId);
+    if (!user) return;
+    user.totalFocusTime = (user.totalFocusTime || 0) + sessionDuration;
+    user.points = (user.points || 0) + xpReward;
+    user.xp = (user.xp || 0) + xpReward;
+    user.socialStats = user.socialStats || {};
+    user.socialStats.squadPoints = (user.socialStats.squadPoints || 0) + xpReward;
+    await user.save();
 };
 
 // ── SQUAD ROOMS ──────────────────────────────────────────────────────────────
@@ -409,6 +450,54 @@ exports.sendRoomMessage = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+// @desc    Host: list a room member's open tasks (for staking in battle)
+// @route   GET /api/social/rooms/:id/member-tasks/:userId
+// @access  Private (room host only)
+exports.getMemberTasksForRoomHost = async (req, res, next) => {
+    try {
+        const room = await SquadRoom.findById(req.params.id);
+        if (!room) {
+            return res.status(404).json({ success: false, message: 'Room not found.' });
+        }
+        if (room.host.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: 'Only the room host can load member tasks.' });
+        }
+        const targetUserId = req.params.userId;
+        const isMember = room.members.some((m) => m.user.toString() === targetUserId);
+        if (!isMember) {
+            return res.status(403).json({ success: false, message: 'User is not in this room.' });
+        }
+        const memberTasksDocs = await Task.find({
+            userId: targetUserId,
+            status: { $ne: 'completed' }
+        })
+            .populate('categoryId')
+            .populate('parentId', 'title')
+            .sort({ createdAt: -1 });
+
+        const memberTasks = memberTasksDocs.map((d) => taskDocToPlain(d));
+
+        let hostTasks = [];
+        if (room.host.toString() !== targetUserId.toString()) {
+            const hostTasksDocs = await Task.find({
+                userId: room.host,
+                status: { $ne: 'completed' }
+            })
+                .populate('categoryId')
+                .populate('parentId', 'title')
+                .sort({ createdAt: -1 });
+            hostTasks = hostTasksDocs.map((d) => taskDocToPlain(d));
+        }
+
+        res.status(200).json({
+            success: true,
+            data: { memberTasks, hostTasks }
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
 // @desc    Get Single Room Details
 // @route   GET /api/social/rooms/:id
 // @access  Private
@@ -422,14 +511,14 @@ exports.getRoom = async (req, res, next) => {
         
         const refreshedRoom = await SquadRoom.findById(room._id)
             .populate('host', 'name avatar')
-            .populate('members.user', 'name avatar avatarConfig')
+            .populate('members.user', 'name avatar avatarConfig xp points totalScore socialStats')
             .populate('messages.sender', 'name avatar avatarConfig')
             .populate({
                 path: 'activeBattle',
                 populate: [
                     {
                         path: 'participants.user',
-                        select: 'name avatar'
+                        select: 'name avatar xp points totalScore socialStats'
                     },
                     {
                         path: 'participants.battleTasks',
@@ -438,7 +527,32 @@ exports.getRoom = async (req, res, next) => {
                 ]
             });
 
-        res.status(200).json({ success: true, data: refreshedRoom });
+        // Build authoritative score list directly from User collection.
+        const memberIds = (refreshedRoom.members || []).map((m) => m.user?._id || m.user).filter(Boolean);
+        const users = await User.find({ _id: { $in: memberIds } })
+            .select('name avatar xp points totalScore socialStats');
+
+        const scoreById = new Map(
+            users.map((u) => [
+                u._id.toString(),
+                {
+                    userId: u._id,
+                    name: u.name,
+                    avatar: u.avatar,
+                    totalScore: u.totalScore || 0,
+                    points: u.points || 0,
+                    xp: u.xp || 0,
+                    squadPoints: u.socialStats?.squadPoints || 0
+                }
+            ])
+        );
+
+        const roomObj = refreshedRoom.toObject();
+        roomObj.memberScores = (refreshedRoom.members || [])
+            .map((m) => scoreById.get(String(m.user?._id || m.user)))
+            .filter(Boolean);
+
+        res.status(200).json({ success: true, data: roomObj });
     } catch (err) { next(err); }
 };
 
@@ -490,7 +604,8 @@ exports.startRoomSession = async (req, res, next) => {
             startTime: new Date(),
             durationMinutes: duration,
             type,
-            isActive: true
+            isActive: true,
+            isPaused: false
         };
         await room.save();
 
@@ -503,6 +618,83 @@ exports.startRoomSession = async (req, res, next) => {
     } catch (err) { next(err); }
 };
 
+// @desc    Pause / resume squad room session timer (host only)
+// @route   POST /api/social/rooms/:id/session/control
+// @access  Private (host)
+exports.roomSessionControl = async (req, res, next) => {
+    try {
+        const { action } = req.body;
+        const room = await SquadRoom.findById(req.params.id);
+        if (!room) return res.status(404).json({ success: false, message: 'Room not found.' });
+        if (room.host.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: 'Only the host can control the session.' });
+        }
+        if (!room.activeSession?.isActive) {
+            return res.status(400).json({ success: false, message: 'No active session.' });
+        }
+        if (action === 'pause') {
+            room.activeSession.isPaused = true;
+        } else if (action === 'resume') {
+            room.activeSession.isPaused = false;
+        } else {
+            return res.status(400).json({ success: false, message: 'Invalid action.' });
+        }
+        await room.save();
+        const populated = await SquadRoom.findById(room._id)
+            .populate('host', 'name avatar')
+            .populate('members.user', 'name avatar avatarConfig')
+            .populate('activeBattle');
+        res.status(200).json({ success: true, data: populated });
+    } catch (err) {
+        next(err);
+    }
+};
+
+// @desc    Abort active session (host): end timer & battle with no completion XP
+// @route   POST /api/social/rooms/:id/abort
+// @access  Private (host)
+exports.abortSquadSession = async (req, res, next) => {
+    try {
+        const room = await SquadRoom.findById(req.params.id).populate('activeBattle');
+        if (!room || !room.activeSession?.isActive) {
+            return res.status(400).json({ success: false, message: 'No active session to abort.' });
+        }
+        if (room.host.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: 'Only the host can abort the session.' });
+        }
+
+        if (room.activeBattle) {
+            const battle = await Battle.findById(room.activeBattle._id || room.activeBattle);
+            if (battle) {
+                battle.status = 'cancelled';
+                battle.endTime = new Date();
+                battle.logs.push({
+                    message: 'Session aborted by host (no completion bonus).',
+                    timestamp: new Date()
+                });
+                await battle.save();
+            }
+        }
+
+        room.members.forEach((member) => {
+            member.status = 'idle';
+        });
+
+        room.activeSession.isActive = false;
+        room.activeBattle = null;
+        await room.save();
+        await refreshSquadScore(room._id);
+
+        res.status(200).json({
+            success: true,
+            message: 'Session ended without awarding completion XP.',
+            abandoned: true
+        });
+    } catch (err) {
+        next(err);
+    }
+};
+
 // @desc    Complete Room Session (award rewards)
 // @route   POST /api/social/rooms/:id/complete
 // @access  Private
@@ -512,8 +704,27 @@ exports.completeSquadSession = async (req, res, next) => {
         if (!room || !room.activeSession?.isActive) {
             return res.status(400).json({ success: false, message: "No active session to complete." });
         }
+        if (room.host.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: 'Only the host can complete the session.' });
+        }
 
-        const sessionDuration = room.activeSession.durationMinutes;
+        const sessionStart = room.activeSession.startTime;
+        const plannedMinutes = room.activeSession.durationMinutes;
+        if (!sessionStart || plannedMinutes == null) {
+            return res.status(400).json({ success: false, message: 'Invalid session data.' });
+        }
+        const scheduledEndMs = new Date(sessionStart).getTime() + plannedMinutes * 60000;
+        // Block early completion (same reward as full session). Small grace for clock skew / latency.
+        const EARLY_GRACE_MS = 4000;
+        if (Date.now() < scheduledEndMs - EARLY_GRACE_MS) {
+            return res.status(400).json({
+                success: false,
+                code: 'SESSION_NOT_ENDED',
+                message: 'Completion rewards unlock only after the scheduled session time has finished.'
+            });
+        }
+
+        const sessionDuration = plannedMinutes;
         const xpReward = sessionDuration * 2 + 50; // Base + Squad Bonus
 
         // Update Battle status
@@ -526,21 +737,12 @@ exports.completeSquadSession = async (req, res, next) => {
             }
         }
 
-        // Award rewards to all members present in the room session
-        const participantIds = room.members.map(m => m.user);
-        await User.updateMany(
-            { _id: { $in: participantIds } },
-            {
-                $inc: {
-                    totalFocusTime: sessionDuration,
-                    points: xpReward,
-                    xp: xpReward,
-                    'socialStats.squadPoints': xpReward
-                }
-            }
-        );
+        const participantIds = room.members.map(m => m.user?._id || m.user);
+        for (const uid of participantIds) {
+            if (!uid) continue;
+            await applySessionCompletionRewards(uid, sessionDuration, xpReward);
+        }
 
-        // Update room member stats
         room.members.forEach(member => {
             member.totalFocusTime += sessionDuration;
             member.status = 'idle';
@@ -549,6 +751,7 @@ exports.completeSquadSession = async (req, res, next) => {
         room.activeSession.isActive = false;
         room.activeBattle = null;
         await room.save();
+        await refreshSquadScore(room._id);
 
         res.status(200).json({
             success: true,
@@ -793,25 +996,13 @@ exports.getTrajectory = async (req, res, next) => {
     }
 };
 
-// Utility to decrypt task if needed
-const ensureDecrypted = (task) => {
-    if (task && typeof task.decryptFieldsSync === 'function') {
-        try {
-            task.decryptFieldsSync();
-        } catch (e) {
-            // Already decrypted or failure
-        }
-    }
-    return task;
-};
-
 // @desc    Get single battle details
 // @route   GET /api/social/battle/:id
 // @access  Private
 exports.getBattle = async (req, res, next) => {
     try {
         const battle = await Battle.findById(req.params.id)
-            .populate('participants.user', 'name avatar')
+            .populate('participants.user', 'name avatar xp points totalScore socialStats')
             .populate('participants.battleTasks')
             .populate('messages.sender', 'name avatar');
 
@@ -974,16 +1165,18 @@ exports.toggleTaskStatus = async (req, res, next) => {
         const task = await Task.findById(taskId);
         if (!task) return res.status(404).json({ success: false, message: "Task not found." });
 
-        // Verify task ownership
-        if (task.userId.toString() !== req.user._id.toString()) {
-            return res.status(403).json({ success: false, message: "Unauthorized task access." });
-        }
-
-        // Auto-add to battleTasks if not already present
-        const isStaked = participant.battleTasks.some(btId => btId.toString() === taskId.toString());
+        const isOwner = task.userId.toString() === req.user._id.toString();
+        let isStaked = participant.battleTasks.some(btId => btId.toString() === taskId.toString());
         if (!isStaked) {
+            if (!isOwner) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'This task is not staked for you in this battle. Ask the host to assign it, or use Stake on your row.'
+                });
+            }
             participant.battleTasks.push(taskId);
         }
+        const pointsAwarded = isStaked ? 50 : 10;
 
         const oldStatus = task.status;
         const newStatus = oldStatus === 'completed' ? 'pending' : 'completed';
@@ -992,38 +1185,37 @@ exports.toggleTaskStatus = async (req, res, next) => {
         task.completedAt = newStatus === 'completed' ? new Date() : null;
         await task.save();
 
-        // Update stats
-        const pointsAwarded = isStaked ? 50 : 10;
-        
+        const hostParticipant = battle.participants.find(p => p.user.toString() === battle.host.toString());
+        const hostIsCompleter = battle.host.toString() === req.user._id.toString();
+
         if (newStatus === 'completed') {
             participant.tasksCompleted += 1;
-            participant.pointsEarned += pointsAwarded; 
+            participant.pointsEarned += pointsAwarded;
+            if (hostParticipant && !hostIsCompleter) {
+                hostParticipant.pointsEarned += pointsAwarded;
+            }
 
             battle.logs.push({
                 message: `Target Neutralized: ${req.user.name} finished [${task.title}] - +${pointsAwarded} XP`,
                 timestamp: new Date()
             });
-
-            // If this is part of a room, refresh the room score
-            if (battle.roomId) {
-                await refreshSquadScore(battle.roomId);
-            }
         } else {
             participant.tasksCompleted = Math.max(0, participant.tasksCompleted - 1);
             participant.pointsEarned = Math.max(0, participant.pointsEarned - pointsAwarded);
+            if (hostParticipant && !hostIsCompleter) {
+                hostParticipant.pointsEarned = Math.max(0, hostParticipant.pointsEarned - pointsAwarded);
+            }
         }
 
         await battle.save();
 
-        // Update squad points & league
         if (battle.roomId) {
-            await refreshSquadScore(battle.roomId);
-            
-            // Also update the individual user's total squad points for their personal stats card
             const inc = newStatus === 'completed' ? pointsAwarded : -pointsAwarded;
-            await User.findByIdAndUpdate(req.user._id, {
-                $inc: { 'socialStats.squadPoints': inc }
-            });
+            await applyUserSquadPointsDelta(req.user._id, inc);
+            if (!hostIsCompleter) {
+                await applyUserSquadPointsDelta(battle.host, inc);
+            }
+            await refreshSquadScore(battle.roomId);
         }
 
         res.status(200).json({ success: true, data: battle });
