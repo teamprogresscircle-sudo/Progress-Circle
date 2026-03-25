@@ -19,18 +19,27 @@ const TimerDisplay = ({
         return Math.max(0, Math.floor((end - new Date()) / 1000));
     };
 
-    const [localTime, setLocalTime] = useState(getInitialTime);
+    const [localTime, setLocalTime] = useState(() => getInitialTime());
 
     const calculateTimeLeft = useCallback(() => {
         if (!isActive || !startTime) return 0;
         const start = new Date(startTime);
-        const end = new Date(start.getTime() + (duration * 60000));
+        if (Number.isNaN(start.getTime())) return 0;
+        const dur = Number(duration);
+        if (!Number.isFinite(dur) || dur <= 0) return 0;
+        const end = new Date(start.getTime() + dur * 60000);
         return Math.max(0, Math.floor((end - new Date()) / 1000));
     }, [isActive, startTime, duration]);
 
+    // Sync from server clock when session config changes. While paused, keep the frozen display time.
     useEffect(() => {
+        if (!isActive || !startTime) {
+            setLocalTime(0);
+            return;
+        }
+        if (isPaused) return;
         setLocalTime(calculateTimeLeft());
-    }, [isActive, startTime, duration, calculateTimeLeft]);
+    }, [isActive, startTime, duration, calculateTimeLeft, isPaused]);
 
     const timeDisplay = React.useMemo(() => {
         const h = Math.floor(localTime / 3600);
@@ -39,13 +48,14 @@ const TimerDisplay = ({
         return h > 0 ? `${h}:${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}` : `${m}:${s < 10 ? '0' : ''}${s}`;
     }, [localTime]);
 
+    // Tick once per second. Do not depend on `localTime` — that cleared the interval every tick and could stall the countdown (poor INP / stuck timer).
     useEffect(() => {
-        if (!isActive || isPaused || localTime <= 0) return;
+        if (!isActive || isPaused) return;
         const interval = setInterval(() => {
-            setLocalTime(prev => Math.max(0, prev - 1));
+            setLocalTime((prev) => (prev <= 0 ? 0 : prev - 1));
         }, 1000);
         return () => clearInterval(interval);
-    }, [isActive, isPaused, localTime]);
+    }, [isActive, isPaused]);
 
     const prevLocalTimeRef = useRef(null);
     const autoCompleteFiredRef = useRef(false);

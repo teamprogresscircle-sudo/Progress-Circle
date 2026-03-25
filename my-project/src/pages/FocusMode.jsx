@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { PageInsight } from '../components/PageInsight';
 import { FocusVideo } from '../components/FocusVideo';
 import { Modal } from '../components/Modal';
-import { useState } from 'react';
+import { useState, startTransition } from 'react';
 
 export function FocusMode() {
     const { tasks, sessions, activeSession } = useData();
@@ -57,9 +57,10 @@ export function FocusMode() {
     return (
         <div className={`fixed inset-0 z-[100] overflow-y-auto scrollbar-hide transition-colors duration-1000 ${activeVisual ? 'bg-transparent' : 'bg-[#050510]'}`}>
             {/* Neural Immersion Engine */}
-            <FocusVideo videoId={activeVisual?.videoId} active={!!activeVisual} opacity={0.6} activeSession={activeSession} />
+            <FocusVideo videoId={activeVisual?.videoId} active={!!activeVisual} opacity={0.6} />
 
-            <div className={`max-w-[1600px] mx-auto px-6 pt-12 pb-12 sm:py-16 space-y-8 sm:space-y-16 relative z-10 transition-all duration-700 ${activeSession ? 'opacity-0 pointer-events-none absolute' : 'opacity-100'}`}>
+            {!activeSession && (
+            <div className="max-w-[1600px] mx-auto px-6 pt-12 pb-12 sm:py-16 space-y-8 sm:space-y-16 relative z-10 transition-all duration-700">
                 {/* Header */}
                 <div className="flex items-center justify-between px-2">
                     <Link to="/" className="relative z-[110] flex items-center gap-3 text-pc-muted hover:text-white transition-all text-xs font-black uppercase tracking-widest group">
@@ -84,7 +85,8 @@ export function FocusMode() {
                     {/* Visual Preset Selector (Floating Mini Bar) */}
                     <div className={`flex items-center gap-2 p-1.5 rounded-2xl shadow-2xl transition-all duration-500 ${activeVisual ? 'bg-black/20 backdrop-blur-3xl border border-white/5' : 'bg-white/[0.02] border border-white/5'}`}>
                         <button 
-                            onClick={() => setActiveVisual(null)}
+                            type="button"
+                            onClick={() => startTransition(() => setActiveVisual(null))}
                             className={`p-2.5 rounded-xl transition-all ${!activeVisual ? 'bg-white/10 text-white shadow-inner shadow-white/10' : 'text-white/20 hover:text-white/40'}`}
                             title="Original Zen"
                         >
@@ -94,12 +96,15 @@ export function FocusMode() {
                         {VISUAL_PRESETS.map((preset) => (
                             <button
                                 key={preset.id}
+                                type="button"
                                 onClick={() => {
                                     if (preset.isPremium && !isPremium) {
                                         navigate('/pricing');
                                         return;
                                     }
-                                    setActiveVisual(activeVisual?.id === preset.id ? null : preset);
+                                    startTransition(() => {
+                                        setActiveVisual(activeVisual?.id === preset.id ? null : preset);
+                                    });
                                 }}
                                 className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${activeVisual?.id === preset.id ? 'bg-indigo-500/80 backdrop-blur-md text-white shadow-[0_0_20px_rgba(99,102,241,0.3)]' : 'text-white/30 hover:text-white/60 hover:bg-white/5'}`}
                             >
@@ -110,9 +115,10 @@ export function FocusMode() {
                         ))}
                     </div>
 
-                    <FocusClock immersive={!!activeVisual} />
+                    <FocusClock />
                 </div>
             </div>
+            )}
 
             {/* Draggable HUD Container (Only visible when activeSession is true) */}
             <AnimatePresence>
@@ -125,7 +131,7 @@ export function FocusMode() {
                     >
                         {/* We will render the Draggable Timer inside FocusClock, but it needs an activeSession awareness wrapper. Actually, FocusClock handles it internally. */}
                         <div className="w-full h-full pointer-events-auto flex items-center justify-center">
-                            <FocusClock immersive={!!activeVisual} />
+                            <FocusClock />
                         </div>
                     </motion.div>
                 )}

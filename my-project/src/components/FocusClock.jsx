@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, startTransition } from 'react';
 import { Timer, Zap, Coffee, Target, ChevronRight, History, MoreVertical, Play, Square, RefreshCcw, Pause, Move, Lock } from 'lucide-react';
 import { Card } from './Card';
 import { Button } from './Button';
@@ -95,15 +95,21 @@ export const FocusClock = () => {
     ];
 
     useEffect(() => {
+        const clearTimer = () => {
+            if (timerRef.current != null) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
+        };
+
         if (activeSession) {
             setNotes(activeSession.notes || '');
-            const tech = TECHNIQUES.find(t => t.name === activeSession.technique) || TECHNIQUES[0];
+            const tech = TECHNIQUES.find((t) => t.name === activeSession.technique) || TECHNIQUES[0];
             setSelectedTechnique(tech);
             setSelectedTaskId(activeSession.taskId || '');
             setTotalCycles(activeSession.totalCycles || 1);
             setCurrentCycle(activeSession.completedCycles + 1 || 1);
-            
-            // Sync time display
+
             const elapsed = Math.round((Date.now() - new Date(activeSession.startTime)) / 1000);
             if (tech.id === 'flow') {
                 setTimeLeft(elapsed);
@@ -112,29 +118,31 @@ export const FocusClock = () => {
                 setTimeLeft(Math.max(0, totalTarget - elapsed));
             }
 
-            if (!timerRef.current) {
-                timerRef.current = setInterval(() => {
-                    if (!isPausedRef.current) {
-                        setTimeLeft(prev => {
-                            if (tech.id === 'flow') return prev + 1;
-                            if (prev <= 0) return 0;
-                            return prev - 1;
-                        });
-                    }
-                }, 1000);
-            }
+            // Always replace the interval: cleanup used to clear() without nulling the ref, so
+            // `if (!timerRef.current)` blocked creating a new interval — countdown appeared stuck at 25:00.
+            clearTimer();
+            timerRef.current = setInterval(() => {
+                if (!isPausedRef.current) {
+                    setTimeLeft((prev) => {
+                        if (tech.id === 'flow') return prev + 1;
+                        if (prev <= 0) return 0;
+                        return prev - 1;
+                    });
+                }
+            }, 1000);
         } else {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
+            clearTimer();
             setIsPaused(false);
-            if (selectedTechnique.id !== 'flow') {
-                setTimeLeft(selectedTechnique.work * 60);
-            } else {
-                setTimeLeft(0);
-            }
         }
-        return () => clearInterval(timerRef.current);
-    }, [activeSession, selectedTechnique]);
+
+        return clearTimer;
+    }, [activeSession]);
+
+    // When no session, keep countdown preset in sync with selected technique (Pomodoro = 25:00, etc.)
+    useEffect(() => {
+        if (activeSession) return;
+        setTimeLeft(selectedTechnique.id !== 'flow' ? selectedTechnique.work * 60 : 0);
+    }, [selectedTechnique, activeSession]);
 
     const fmt = (s) => {
         const m = Math.floor(s / 60), sec = s % 60;
@@ -264,14 +272,9 @@ export const FocusClock = () => {
                                     )}
                                 </svg>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                    <motion.span 
-                                        key={timeLeft}
-                                        initial={{ filter: 'blur(4px)', opacity: 0.8 }}
-                                        animate={{ filter: 'blur(0px)', opacity: 1 }}
-                                        className="text-6xl lg:text-9xl font-black italic tracking-tighter font-manrope text-white drop-shadow-lg"
-                                    >
+                                    <span className="text-6xl lg:text-9xl font-black italic tracking-tighter font-manrope text-white drop-shadow-lg tabular-nums">
                                         {fmt(timeLeft)}
-                                    </motion.span>
+                                    </span>
                                     <p className="text-[10px] lg:text-xs font-black uppercase tracking-[0.5em] text-white/20 mt-4">
                                         {selectedTechnique.id === 'flow' ? 'Continuous Stream' : 'Focus Integrity'}
                                     </p>
@@ -303,12 +306,13 @@ export const FocusClock = () => {
                                 {TECHNIQUES.map((t) => (
                                     <button
                                         key={t.id}
+                                        type="button"
                                         onClick={() => {
                                             if (t.isPremium && !isPremium) {
                                                 navigate('/pricing');
                                                 return;
                                             }
-                                            setSelectedTechnique(t);
+                                            startTransition(() => setSelectedTechnique(t));
                                         }}
                                         className={`relative flex flex-col items-center gap-3 p-4 rounded-3xl border transition-all duration-300 group ${
                                             selectedTechnique.id === t.id 

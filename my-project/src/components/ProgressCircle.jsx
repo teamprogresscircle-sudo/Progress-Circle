@@ -33,9 +33,9 @@ export function ProgressCircle({
                     strokeWidth={strokeWidth}
                     fill="transparent"
                     strokeDasharray={circumference}
-                    initial={{ strokeDashoffset: circumference }}
+                    initial={false}
                     animate={{ strokeDashoffset: offset }}
-                    transition={{ duration: 1, ease: "easeOut" }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
                     strokeLinecap="round"
                 />
             </svg>
