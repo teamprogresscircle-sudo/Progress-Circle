@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { BarChart3, Users, UserPlus } from 'lucide-react';
+import { BarChart3, Users, UserPlus, X } from 'lucide-react';
 
 const OperativeGrid = ({
     members,
@@ -9,7 +9,8 @@ const OperativeGrid = ({
     isHost = false,
     hasActiveBattle = false,
     battleParticipants = [],
-    onAssignToMember
+    onAssignToMember,
+    onUnassignTask
 }) => {
     const scoredMembers = useMemo(() => {
         const normalized = (members || []).map((member) => {
@@ -32,15 +33,32 @@ const OperativeGrid = ({
         return normalized.sort((a, b) => b.score - a.score);
     }, [members, scoreOverrideByUser]);
 
-    const stakedCountByUser = useMemo(() => {
+    const nameByUserId = useMemo(() => {
+        const m = {};
+        (members || []).forEach((mem) => {
+            const id = String(mem.user?._id || mem.user?.id || mem.user || mem._id);
+            if (id) m[id] = mem.user?.name || mem.name || 'Member';
+        });
+        return m;
+    }, [members]);
+
+    const tasksByAssigneeId = useMemo(() => {
         const map = {};
         (battleParticipants || []).forEach((p) => {
             const uid = String(p.user?._id || p.user?.id || p.user);
             if (!uid) return;
-            map[uid] = Array.isArray(p.battleTasks) ? p.battleTasks.length : 0;
+            map[uid] = Array.isArray(p.battleTasks) ? p.battleTasks.filter(Boolean) : [];
         });
         return map;
     }, [battleParticipants]);
+
+    const stakedCountByUser = useMemo(() => {
+        const out = {};
+        Object.keys(tasksByAssigneeId).forEach((uid) => {
+            out[uid] = tasksByAssigneeId[uid].length;
+        });
+        return out;
+    }, [tasksByAssigneeId]);
 
     const maxScore = useMemo(
         () => Math.max(1, ...scoredMembers.map((member) => member.score)),
@@ -48,11 +66,28 @@ const OperativeGrid = ({
     );
 
     const canUseAssign = typeof onAssignToMember === 'function';
-    const showAddOrAssign = (member) => {
+    const canUnassign = isHost && typeof onUnassignTask === 'function';
+
+    /** Only host sees Assign on other members' rows — no button on your own row */
+    const showAssignOnMember = (member) => {
         if (!hasActiveBattle || !canUseAssign) return false;
         const isMe = String(member.id) === String(currentUserId);
-        if (isMe) return true;
+        if (isMe) return false;
         return isHost;
+    };
+
+    const taskTitle = (task) => {
+        if (!task) return 'Task';
+        if (typeof task === 'string') return 'Task';
+        return task.title || 'Task';
+    };
+
+    const ownerLabel = (task, assigneeId) => {
+        if (!task || typeof task === 'string') return null;
+        const ownerId = String(task.userId?._id || task.userId || '');
+        if (!ownerId || ownerId === assigneeId) return null;
+        const ownerName = task.userId?.name || nameByUserId[ownerId] || 'Member';
+        return ownerName;
     };
 
     return (
@@ -68,11 +103,16 @@ const OperativeGrid = ({
                         </h3>
                         <p className="text-[11px] text-[var(--text)]/45 font-inter mt-0.5 leading-snug">
                             Total score (profile) for everyone in this room.
-                            {hasActiveBattle && (
+                            {hasActiveBattle && isHost && (
                                 <span className="text-[var(--text)]/55">
                                     {' '}
-                                    Use <span className="font-semibold text-[var(--text)]/70">Add</span> on <em>your</em> row to attach your tasks to this session.
-                                    {isHost && ' As host, use Assign on others’ rows to give them tasks or delegate yours.'}
+                                    Use <span className="font-semibold text-[var(--text)]/70">Assign</span> on a member’s row to give them tasks or delegate yours. You can remove assignments below.
+                                </span>
+                            )}
+                            {hasActiveBattle && !isHost && (
+                                <span className="text-[var(--text)]/55">
+                                    {' '}
+                                    Session tasks for you are listed under your name. The host can assign work with <span className="font-semibold text-[var(--text)]/70">Assign</span>.
                                 </span>
                             )}
                         </p>
@@ -90,7 +130,8 @@ const OperativeGrid = ({
                             const width = Math.max(6, (member.score / maxScore) * 100);
                             const isMe = String(member.id) === String(currentUserId);
                             const staked = stakedCountByUser[member.id] ?? 0;
-                            const showBtn = showAddOrAssign(member);
+                            const showAssignBtn = showAssignOnMember(member);
+                            const sessionTasks = tasksByAssigneeId[member.id] || [];
                             return (
                                 <div
                                     key={member.id}
@@ -105,15 +146,15 @@ const OperativeGrid = ({
                                                         <span className="ml-1.5 text-[10px] font-medium text-[var(--primary)]">(you)</span>
                                                     )}
                                                 </span>
-                                                {showBtn && (
+                                                {showAssignBtn && (
                                                     <button
                                                         type="button"
                                                         onClick={() => onAssignToMember(member.id)}
                                                         className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--primary)]/12 border border-[var(--primary)]/25 text-[var(--primary)] text-[11px] font-semibold hover:bg-[var(--primary)]/20 transition-colors"
-                                                        title={isMe ? 'Add your tasks to this session' : `Assign tasks for ${member.name}`}
+                                                        title={`Assign tasks for ${member.name}`}
                                                     >
                                                         <UserPlus size={14} />
-                                                        {isMe ? 'Add' : 'Assign'}
+                                                        Assign
                                                     </button>
                                                 )}
                                             </div>
@@ -132,6 +173,42 @@ const OperativeGrid = ({
                                                 <p className="text-[10px] text-[var(--text)]/40 font-inter">
                                                     {staked} task{staked === 1 ? '' : 's'} in this session
                                                 </p>
+                                            )}
+                                            {hasActiveBattle && sessionTasks.length > 0 && (
+                                                <ul className="mt-2 space-y-1.5 border-t border-[var(--border)]/10 pt-2">
+                                                    {sessionTasks.map((task) => {
+                                                        const tid = String(task?._id || task);
+                                                        const title = taskTitle(task);
+                                                        const from = ownerLabel(task, member.id);
+                                                        return (
+                                                            <li
+                                                                key={tid}
+                                                                className="flex items-start justify-between gap-2 text-[11px] text-[var(--text)]/75 font-inter leading-snug"
+                                                            >
+                                                                <span className="min-w-0 flex-1">
+                                                                    <span className="font-medium text-[var(--text)]/85">{title}</span>
+                                                                    {from && (
+                                                                        <span className="text-[var(--text)]/45">
+                                                                            {' '}
+                                                                            (from {from})
+                                                                        </span>
+                                                                    )}
+                                                                </span>
+                                                                {canUnassign && (
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={() => onUnassignTask(tid, member.id)}
+                                                                        className="shrink-0 p-1 rounded-md text-[var(--text)]/35 hover:text-red-500 hover:bg-red-500/10 transition-colors"
+                                                                        title="Remove from session"
+                                                                        aria-label="Remove from session"
+                                                                    >
+                                                                        <X size={14} />
+                                                                    </button>
+                                                                )}
+                                                            </li>
+                                                        );
+                                                    })}
+                                                </ul>
                                             )}
                                         </div>
                                     </div>

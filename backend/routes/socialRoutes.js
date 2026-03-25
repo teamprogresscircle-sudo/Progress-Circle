@@ -7,7 +7,7 @@ const {
     createRoom, getRooms, getRoom, getMemberTasksForRoomHost, joinRoom, acceptRoomInvite, rejectRoomInvite,
     inviteToRoom, leaveRoom, deleteRoom, sendRoomMessage, updateMemberStatus, startRoomSession, completeSquadSession, abortSquadSession, roomSessionControl,
     getGlobalSquadLeaderboard, getNotifications, markNotificationToasted, clearNotifications, deleteNotification, clearSynergyData,
-    inviteToBattle, respondToBattle, getActiveBattles, getBattle, toggleTaskStatus, addTaskToBattle,
+    inviteToBattle, respondToBattle, getActiveBattles, getBattle, toggleTaskStatus, addTaskToBattle, removeTaskFromBattle,
     getSquadStats, getSquadActivity
 } = require('../controllers/socialController');
 
@@ -42,6 +42,7 @@ router.patch('/rooms/:id/status', protect, updateMemberStatus);
 router.post('/battle/invite', protect, inviteToBattle);
 router.get('/battle/active', protect, getActiveBattles);
 router.post('/battle/add-task/:id', protect, addTaskToBattle);
+router.post('/battle/remove-task/:id', protect, removeTaskFromBattle);
 router.post('/battle/respond/:id', protect, respondToBattle);
 router.patch('/battle/toggle-task/:id', protect, toggleTaskStatus);
 router.get('/battle/:id', protect, getBattle);

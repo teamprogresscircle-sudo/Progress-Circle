@@ -274,6 +274,24 @@ export default function SquadFocusArena() {
         } catch (err) { toast.error('Assignment synchronization failed'); }
     }, [room?.activeBattle, targetUserId, fetchBattleScores, fetchRoom, closeTaskSelector]);
 
+    const handleUnassignTask = useCallback(async (taskId, targetUserId) => {
+        try {
+            const battleId = room.activeBattle?._id || room.activeBattle;
+            if (!battleId) {
+                toast.error('Tactical session not active');
+                return;
+            }
+            const res = await api.post(`/social/battle/remove-task/${battleId}`, { taskId, targetUserId });
+            if (res.data.success) {
+                toast.success('Removed from session');
+                await fetchBattleScores(battleId);
+                fetchRoom();
+            }
+        } catch {
+            toast.error('Could not remove assignment');
+        }
+    }, [room?.activeBattle, fetchBattleScores, fetchRoom]);
+
     const handleToggleTaskSelection = useCallback((taskId) => {
         setSelectedTaskIds(prev => {
             const isSelecting = !prev.includes(taskId);
@@ -447,6 +465,13 @@ export default function SquadFocusArena() {
 
     const members = room?.members || [];
     const scoreMembers = (battleParticipants.length ? battleParticipants : (room?.activeBattle?.participants?.length ? room.activeBattle.participants : members)) || [];
+    const battleParticipantsForGrid = useMemo(
+        () =>
+            battleParticipants.length > 0
+                ? battleParticipants
+                : room?.activeBattle?.participants || [],
+        [battleParticipants, room?.activeBattle?.participants]
+    );
     const messages = room?.messages || [];
 
     const assignmentSelfTarget = useMemo(
@@ -604,14 +629,15 @@ export default function SquadFocusArena() {
                     currentUserId={currentUser?._id || currentUser?.id}
                     isHost={isHost}
                     hasActiveBattle={!!room?.activeBattle}
-                    battleParticipants={battleParticipants}
+                    battleParticipants={battleParticipantsForGrid}
                     onAssignToMember={openTaskSelector}
+                    onUnassignTask={isHost ? handleUnassignTask : undefined}
                     pointsPop={pointsPop}
                     scoreOverrideByUser={roomScoreByUser}
                 />
             </div>
         </main>
-    ), [sidebarTacticalOpen, sidebarIntelOpen, room?.activeSession, isHost, handleControl, handleCompleteSession, handleAbortSession, openConfigModal, scoreMembers, currentUser, room?.activeBattle, openTaskSelector, pointsPop, roomScoreByUser, battleParticipants]);
+    ), [sidebarTacticalOpen, sidebarIntelOpen, room?.activeSession, isHost, handleControl, handleCompleteSession, handleAbortSession, openConfigModal, scoreMembers, currentUser, room?.activeBattle, openTaskSelector, handleUnassignTask, pointsPop, roomScoreByUser, battleParticipantsForGrid]);
 
 
     // 4. Stable Intelligence Sidebar Block
@@ -968,7 +994,7 @@ export default function SquadFocusArena() {
                                     <p className="text-[12px] text-[var(--text)]/45 font-inter leading-relaxed">
                                         {assignmentSelfTarget ? (
                                             <>
-                                                Nothing left to add: either every open task is already in this session, or you have no open tasks. Create tasks from the main Tasks page, then tap <strong className="text-[var(--text)]/65">Add</strong> on your row in Room scores.
+                                                Nothing left to add: either every open task is already in this session, or you have no open tasks. Create tasks from the main Tasks page if needed.
                                             </>
                                         ) : (
                                             <>

@@ -151,15 +151,13 @@ const TacticalSidebar = ({
                         >
                             {isHost ? (
                                 <>
-                                    In <span className="font-semibold text-[var(--text)]">Room scores</span>, tap{' '}
-                                    <span className="font-semibold text-[var(--primary)]">Add</span> on <em>your</em> row for your tasks, or{' '}
-                                    <span className="font-semibold text-[var(--primary)]">Assign</span> on someone else’s row. This sidebar lists tasks you chose below plus anything added for this session.
+                                    In <span className="font-semibold text-[var(--text)]">Room scores</span>, use{' '}
+                                    <span className="font-semibold text-[var(--primary)]">Assign</span> on a member’s row to delegate tasks; remove with <span className="font-semibold text-[var(--text)]">×</span> next to a task. This sidebar lists tasks you chose below plus anything in this session.
                                 </>
                             ) : (
                                 <>
-                                    In <span className="font-semibold text-[var(--text)]/75">Room scores</span>, tap{' '}
-                                    <span className="font-semibold text-[var(--primary)]">Add</span> on <em>your</em> row to attach your open tasks (+50 XP when completed if in session). The host can use{' '}
-                                    <span className="font-semibold text-[var(--text)]/75">Assign</span> next to <em>your</em> name too. This panel is your checklist.
+                                    Session tasks for you appear here and under your name in <span className="font-semibold text-[var(--text)]/75">Room scores</span>. The host can use{' '}
+                                    <span className="font-semibold text-[var(--primary)]">Assign</span> next to your name. This panel is your checklist.
                                 </>
                             )}
                         </div>

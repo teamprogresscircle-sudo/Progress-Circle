@@ -1120,6 +1120,48 @@ exports.addTaskToBattle = async (req, res, next) => {
     }
 };
 
+// @desc    Host: remove a task from a participant's session list (unassign)
+// @route   POST /api/social/battle/remove-task/:id
+// @access  Private (host only)
+exports.removeTaskFromBattle = async (req, res, next) => {
+    try {
+        const { taskId, targetUserId } = req.body;
+        const battle = await Battle.findById(req.params.id);
+
+        if (!battle || battle.status === 'completed' || battle.status === 'cancelled') {
+            return res.status(400).json({ success: false, message: 'Arena is not active.' });
+        }
+        if (battle.host.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ success: false, message: 'Only the host can remove session assignments.' });
+        }
+
+        const participant = battle.participants.find((p) => p.user.toString() === targetUserId.toString());
+        if (!participant) {
+            return res.status(404).json({ success: false, message: 'Target user is not in this Arena.' });
+        }
+
+        const had = participant.battleTasks.some((tid) => tid.toString() === taskId.toString());
+        if (!had) {
+            return res.status(400).json({ success: false, message: 'Task is not in this session for that user.' });
+        }
+
+        participant.battleTasks = participant.battleTasks.filter((tid) => tid.toString() !== taskId.toString());
+
+        const taskDoc = await Task.findById(taskId);
+        ensureDecrypted(taskDoc);
+        const targetUser = await User.findById(targetUserId).select('name');
+        battle.logs.push({
+            message: `Host removed [${taskDoc?.title || 'task'}] from ${targetUser?.name || 'operative'}'s session`,
+            timestamp: new Date()
+        });
+
+        await battle.save();
+        res.status(200).json({ success: true, data: battle });
+    } catch (err) {
+        next(err);
+    }
+};
+
 // @desc    Extend battle time
 // @route   PATCH /api/social/battle/extend/:id
 // @access  Private (Host)

@@ -165,7 +165,7 @@ const TimerDisplay = ({
                             </div>
                             <p className="text-[10px] sm:text-[11px] text-[var(--text)]/45 text-center leading-relaxed max-w-lg mx-auto px-2 font-inter">
                                 Rewards finalize automatically when the timer hits <span className="text-[var(--text)]/65 font-medium">0:00</span>.
-                                Use <span className="text-[var(--text)]/65 font-medium">Add</span> or <span className="text-[var(--text)]/65 font-medium">Assign</span> in <span className="text-[var(--text)]/65 font-medium">Room scores</span> below. Use <span className="text-[var(--text)]/55">Abort</span> only to stop without the completion bonus.
+                                Check <span className="text-[var(--text)]/65 font-medium">Room scores</span> for session tasks by person. Use <span className="text-[var(--text)]/55">Abort</span> only to stop without the completion bonus.
                             </p>
                         </div>
                     )}
