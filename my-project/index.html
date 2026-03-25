@@ -51,7 +51,9 @@
         background-color: var(--bg);
         margin: 0;
         padding: 0;
-        overflow: hidden;
+        /* Do not use overflow: hidden — it blocks vertical scroll on the landing page and app. */
+        overflow-x: hidden;
+        overflow-y: auto;
       }
       #root:empty {
         display: flex;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense, startTransition } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSEO } from '../hooks/useSEO';
@@ -10,7 +10,7 @@ import {
     Users, Shield, Globe, Cpu, Star,
     Menu, X, ChevronRight, Layers, Sparkles, Github
 } from 'lucide-react';
-import SoftAurora from '../../Animations/SoftAuora/SoftAurora';
+const SoftAurora = lazy(() => import('../../Animations/SoftAuora/SoftAurora'));
 import { Footer } from '../components/Footer';
 
 const FEATURES = [
@@ -50,7 +50,13 @@ export function Landing() {
 
     const handleGetStarted = () => {
         const path = ref ? `/login?mode=register&ref=${ref}` : '/login';
-        navigate(path);
+        startTransition(() => navigate(path));
+    };
+
+    const scrollToFeatures = () => {
+        startTransition(() => {
+            document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' });
+        });
     };
 
     useEffect(() => {
@@ -82,20 +88,6 @@ export function Landing() {
 
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
-
-    const fadeInUp = {
-        initial: { opacity: 0, y: 20 },
-        animate: { opacity: 1, y: 0 },
-        transition: { duration: 0.8, ease: [0.16, 1, 0.3, 1] }
-    };
-
-    const staggerContainer = {
-        animate: {
-            transition: {
-                staggerChildren: 0.1
-            }
-        }
-    };
 
     return (
         <div className="min-h-screen bg-[#0B0B0F] text-[#F8FAFC] font-inter selection:bg-indigo-500/30 selection:text-white overflow-x-hidden">
@@ -170,93 +162,72 @@ export function Landing() {
                 {/* Hero Section */}
                 <section className="relative pt-48 pb-32 px-6 overflow-hidden">
                     <div className="absolute inset-0 z-0">
-                        <SoftAurora
-                            speed={0.6}
-                            scale={1.5}
-                            brightness={1}
-                            color1="#f7f7f7"
-                            color2="#e100ff"
-                            noiseFrequency={2.5}
-                            noiseAmplitude={1}
-                            bandHeight={0.5}
-                            bandSpread={1}
-                            octaveDecay={0.1}
-                            layerOffset={0}
-                            colorSpeed={1}
-                            enableMouseInteraction
-                            mouseInfluence={0.25}
-                        />
+                        <Suspense fallback={<div className="absolute inset-0 bg-[#0B0B0F]" aria-hidden />}>
+                            <SoftAurora
+                                speed={0.6}
+                                scale={1.5}
+                                brightness={1}
+                                color1="#f7f7f7"
+                                color2="#e100ff"
+                                noiseFrequency={2.5}
+                                noiseAmplitude={1}
+                                bandHeight={0.5}
+                                bandSpread={1}
+                                octaveDecay={0.1}
+                                layerOffset={0}
+                                colorSpeed={1}
+                                enableMouseInteraction={false}
+                                mouseInfluence={0}
+                            />
+                        </Suspense>
                         <div className="absolute inset-0 bg-gradient-to-b from-[#0B0B0F]/10 via-transparent to-[#0B0B0F]" />
                     </div>
+                    {/* Static hero copy = faster LCP (no opacity-0 → 1 animation on LCP element) */}
                     <div className="max-w-6xl mx-auto text-center relative z-10">
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8 }}
-                            className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] mb-12 shadow-sm"
-                        >
+                        <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.03] border border-white/[0.08] mb-12 shadow-sm">
                             <Sparkles size={14} className="text-indigo-400" />
                             <span className="text-xs font-bold text-white/90 uppercase tracking-wider">
                                 Astra AI Powered
                             </span>
-                        </motion.div>
+                        </div>
 
-                        <motion.h1
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-4xl md:text-6xl font-sans font-semibold tracking-tight text-white mb-8 leading-[1.1]">
+                        <h1 className="text-4xl md:text-6xl font-sans font-semibold tracking-tight text-white mb-8 leading-[1.1]">
                             Master your time.<br />
                             <span className="opacity-40">Expand your circle.</span>
-                        </motion.h1>
+                        </h1>
 
-                        <motion.p
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.8, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
-                            className="text-xl md:text-2xl text-white/40 max-w-2xl mx-auto mb-14 font-light leading-relaxed"
-                        >
+                        <p className="text-xl md:text-2xl text-white/40 max-w-2xl mx-auto mb-14 font-light leading-relaxed">
                             Everything you need to focus, track, and grow — in one seamless system.
-                        </motion.p>
+                        </p>
 
-
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.6, delay: 0.15, ease: [0.16, 1, 0.3, 1] }}
-                            className="flex flex-col sm:flex-row items-center justify-center gap-6"
-                        >
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-6">
                             <button
+                                type="button"
                                 onClick={handleGetStarted}
-                                className="group relative w-full sm:w-auto px-12 py-4 bg-white text-[#0B0B0F] rounded-full font-bold text-lg hover:scale-[1.03] hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-center gap-3 overflow-hidden shadow-xl"
+                                className="group relative w-full sm:w-auto px-12 py-4 bg-white text-[#0B0B0F] rounded-full font-bold text-lg hover:scale-[1.03] hover:-translate-y-0.5 transition-transform duration-200 flex items-center justify-center gap-3 overflow-hidden shadow-xl"
                             >
                                 <span>Join Now</span>
                             </button>
                             <button
-                                onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}
-                                className="w-full sm:w-auto px-12 py-4 bg-white/[0.03] border border-white/[0.1] rounded-full font-bold text-lg text-white/50 hover:bg-white/[0.06] hover:text-white transition-all active:scale-[0.98]"
+                                type="button"
+                                onClick={scrollToFeatures}
+                                className="w-full sm:w-auto px-12 py-4 bg-white/[0.03] border border-white/[0.1] rounded-full font-bold text-lg text-white/50 hover:bg-white/[0.06] hover:text-white transition-colors duration-200 active:scale-[0.98]"
                             >
                                 Learn More
                             </button>
-                        </motion.div>
+                        </div>
                     </div>
                 </section>
 
                 {/* Features Section */}
                 <section id="features" className="py-32 px-6 border-t border-white/[0.03] relative overflow-hidden">
                     <div className="max-w-7xl mx-auto relative z-10">
-                        <motion.div
-                            initial="initial"
-                            whileInView="animate"
-                            viewport={{ once: true }}
-                            variants={staggerContainer}
-                            className="text-center mb-24"
-                        >
-                            <motion.h2 variants={fadeInUp} className="text-3xl md:text-5xl font-outfit font-bold mb-6">Built for elite performance.</motion.h2>
-                            <motion.p variants={fadeInUp} className="text-white/40 text-lg max-w-2xl mx-auto leading-relaxed">
+                        <div className="text-center mb-24">
+                            <h2 className="text-3xl md:text-5xl font-outfit font-bold mb-6">Built for elite performance.</h2>
+                            <p className="text-white/40 text-lg max-w-2xl mx-auto leading-relaxed">
                                 Experience a set of modules designed to streamline every aspect of your professional and personal life.
-                            </motion.p>
-                        </motion.div>
+                            </p>
+                        </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             <FeatureCard
@@ -452,16 +423,15 @@ function FeatureCard({ icon, title, desc, color }) {
     };
 
     return (
-        <motion.div
-            whileHover={{ y: -8 }}
-            className="p-10 bg-white/[0.02] border border-white/[0.05] rounded-[2rem] hover:bg-white/[0.04] hover:border-white/[0.1] transition-all duration-500 group"
+        <div
+            className="p-10 bg-white/[0.02] border border-white/[0.05] rounded-[2rem] hover:bg-white/[0.04] hover:border-white/[0.1] transition-[transform,background-color,border-color] duration-200 ease-out group transform-gpu hover:-translate-y-2 will-change-transform"
         >
-            <div className={`w-14 h-14 bg-white/[0.03] rounded-2xl flex items-center justify-center mb-8 transition-all duration-500 ${colorClasses[color]}`}>
+            <div className={`w-14 h-14 bg-white/[0.03] rounded-2xl flex items-center justify-center mb-8 transition-colors duration-200 ${colorClasses[color]}`}>
                 {icon}
             </div>
             <h3 className="text-2xl font-semibold font-sans mb-4 group-hover:text-white transition-colors text-white">{title}</h3>
             <p className="text-white/30 text-base leading-relaxed group-hover:text-white/50 transition-colors">{desc}</p>
-        </motion.div>
+        </div>
     );
 }
 
@@ -512,8 +482,9 @@ function PricingCard({ title, price, period, features, featured = false, btnText
                 ))}
             </ul>
             <button
-                onClick={onAction}
-                className={`w-full py-5 rounded-full font-semibold text-lg transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] ${featured
+                type="button"
+                onClick={() => startTransition(() => onAction?.())}
+                className={`w-full py-5 rounded-full font-semibold text-lg transition-transform duration-200 hover:scale-[1.02] active:scale-[0.98] ${featured
                     ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/30'
                     : 'bg-white/[0.04] border border-white/10 text-white hover:bg-white/10'
                     }`}
