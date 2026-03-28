@@ -430,6 +430,16 @@ select.pc-input {
   /* Chrome, Safari, Opera */
 }
 
+/* Hide scrollbar utility */
+.no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+
 /* On touch devices show action buttons that are normally hover-only */
 @media (hover: none) and (pointer: coarse) {
   .touch-always-visible {
