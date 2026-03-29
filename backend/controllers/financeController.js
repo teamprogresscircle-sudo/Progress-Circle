@@ -44,6 +44,22 @@ exports.updateAccount = async (req, res, next) => {
     }
 };
 
+exports.deleteAccount = async (req, res, next) => {
+    try {
+        const account = await Account.findOneAndDelete({ _id: req.params.id, userId: req.user._id });
+        if (!account) return res.status(404).json({ success: false, message: 'Account not found' });
+        
+        // Recompute totalMoney
+        const allAccounts = await Account.find({ userId: req.user._id });
+        const newTotal = allAccounts.reduce((sum, a) => sum + (a.balance || 0), 0);
+        await User.findByIdAndUpdate(req.user._id, { totalMoney: newTotal });
+
+        res.status(200).json({ success: true, data: {} });
+    } catch (error) {
+        next(error);
+    }
+};
+
 // --- GOALS ---
 exports.getGoals = async (req, res, next) => {
     try {

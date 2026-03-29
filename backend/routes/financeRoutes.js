@@ -3,7 +3,7 @@ const router = express.Router();
 const { protect } = require('../middleware/auth');
 const { requirePremium } = require('../middleware/premiumMiddleware');
 const {
-    getAccounts, createAccount, updateAccount,
+    getAccounts, createAccount, updateAccount, deleteAccount,
     getGoals, createGoal, updateGoal, deleteGoal,
     getBudgets, createBudget, updateBudget, deleteBudget,
     getFinanceInsights
@@ -20,7 +20,7 @@ router.use(protect, requirePremium);
 
 // ── Accounts ──────────────────────────────────────────────────────────────────
 router.route('/accounts').get(getAccounts).post(createAccount);
-router.route('/accounts/:id').put(updateAccount);
+router.route('/accounts/:id').put(updateAccount).delete(deleteAccount);
 
 // ── Goals ─────────────────────────────────────────────────────────────────────
 router.route('/goals').get(getGoals).post(createGoal);
