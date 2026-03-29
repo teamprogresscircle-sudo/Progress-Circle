@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Target, Instagram, Facebook, Cpu, Zap, ShieldCheck } from 'lucide-react';
+import { Instagram, Cpu, Zap, ShieldCheck } from 'lucide-react';
 
 export function Footer() {
     const navigate = useNavigate();
@@ -40,8 +40,8 @@ export function Footer() {
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                             navigate('/');
                         }}>
-                            <div className="w-10 h-10 bg-white/[0.03] border border-white/[0.08] rounded-xl flex items-center justify-center transition-all group-hover:bg-white/5 overflow-hidden">
-                                <img src="/logo zoom.png" alt="ProgressCircle Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                            <div className="w-10 h-10 bg-white/[0.03] border border-white/[0.08] rounded-full flex items-center justify-center transition-all group-hover:bg-white/5 overflow-hidden">
+                                <img src="/logo.png" alt="ProgressCircle Logo" className="rounded-full" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             </div>
                             <span className="font-sans font-bold text-xl tracking-tight text-white">ProgressCircle</span>
                         </div>
@@ -107,16 +107,7 @@ export function Footer() {
                     </div>
 
                     <div className="flex items-center gap-6">
-                        <SocialIcon icon={<Instagram size={18} />} href="#" />
-                        <SocialIcon icon={<Facebook size={18} />} href="#" />
-                        <SocialIcon 
-                            icon={
-                                <svg viewBox="0 0 24 24" width="18" height="18" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
-                                    <path d="M9 12a4 4 0 1 0 4 4V4a5 5 0 0 0 5 5" />
-                                </svg>
-                            } 
-                            href="#" 
-                        />
+                        <SocialIcon icon={<Instagram size={18} />} href="https://www.instagram.com/team.progresscircle/" />
                     </div>
                 </div>
             </div>

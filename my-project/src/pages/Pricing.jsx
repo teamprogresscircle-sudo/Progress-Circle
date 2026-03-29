@@ -45,7 +45,7 @@ export default function Pricing() {
 
     const INSTAPAY_HANDLE = "progresscircle@instapay"; // Placeholder, change as needed
     const TELDA_HANDLE = "@progresscircle"; // Placeholder, change as needed
-    const INSTAGRAM_URL = "https://instagram.com/progress_circle"; // Placeholder
+    const INSTAGRAM_URL = "https://www.instagram.com/team.progresscircle/"; 
 
     useEffect(() => {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';

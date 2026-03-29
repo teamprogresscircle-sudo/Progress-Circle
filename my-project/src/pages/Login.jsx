@@ -231,8 +231,8 @@ export function Login() {
             <aside className="hidden lg:flex lg:flex-col lg:justify-between ln-slide-in" style={{ width: 500, flexShrink: 0, padding: '3rem 3.5rem', borderRight: '1px solid rgba(255,255,255,0.05)', position: 'relative' }}>
                 <div style={{ position: 'relative', zIndex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 60 }}>
-                        <div style={{ width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <img src="/logo zoom.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                        <div style={{ width: 44, height: 44, borderRadius: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                            <img src="/logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
                         </div>
                         <h1 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '1.4rem', color: '#fff', margin: 0 }}>ProgressCircle</h1>
                     </div>
@@ -268,8 +268,8 @@ export function Login() {
                     {/* Header for mobile */}
                     <div className="lg:hidden" style={{ textAlign: 'center', marginBottom: 32 }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 8 }}>
-                            <div style={{ width: 38, height: 38, borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <img src="/logo zoom.png" alt="Logo" style={{ width: '28px' }} />
+                            <div style={{ width: 38, height: 38, borderRadius: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                                <img src="/logo.png" alt="Logo" style={{ width: '28px', height: '28px', objectFit: 'cover', borderRadius: '50%' }} />
                             </div>
                             <h2 style={{ fontFamily: 'Outfit, sans-serif', fontWeight: 700, fontSize: '1.25rem', color: '#fff', margin: 0 }}>ProgressCircle</h2>
                         </div>
