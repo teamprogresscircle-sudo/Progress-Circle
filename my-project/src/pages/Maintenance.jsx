@@ -32,7 +32,7 @@ export function Maintenance() {
                                 transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                                 className="w-20 h-20 rounded-full border-2 border-indigo-500/50 flex items-center justify-center bg-indigo-500/5 backdrop-blur-xl"
                             >
-                                <Cpu className="text-indigo-500" size={40} />
+                                <img src="/logo zoom.png" alt="Logo" style={{ width: 44, height: 44, objectFit: 'contain' }} />
                             </motion.div>
                         </motion.div>
                         

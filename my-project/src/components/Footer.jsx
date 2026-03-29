@@ -40,8 +40,8 @@ export function Footer() {
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                             navigate('/');
                         }}>
-                            <div className="w-10 h-10 bg-white/[0.03] border border-white/[0.08] rounded-xl flex items-center justify-center transition-all group-hover:bg-white/5">
-                                <Target size={20} className="text-white" />
+                            <div className="w-10 h-10 bg-white/[0.03] border border-white/[0.08] rounded-xl flex items-center justify-center transition-all group-hover:bg-white/5 overflow-hidden">
+                                <img src="/logo zoom.png" alt="ProgressCircle Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                             </div>
                             <span className="font-sans font-bold text-xl tracking-tight text-white">ProgressCircle</span>
                         </div>

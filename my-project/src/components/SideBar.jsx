@@ -76,13 +76,15 @@ export function SidebarContent({ onClose }) {
 
     return (
         <div style={sidebarStyle}>
-            {/* Logo */}
             <div style={{ padding: '20px 24px 16px', borderBottom: dark ? '1px solid rgba(255,255,255,0.1)' : '1px solid var(--border)' }} className="flex items-center justify-between">
-                <div>
-                    <span style={{ fontFamily: 'Manrope,sans-serif', fontWeight: 800, fontSize: '1.2rem', color: dark ? '#fff' : 'var(--text)' }}>
-                        Progress<span style={{ color: dark ? '#fff' : 'var(--primary)', textShadow: dark ? '0 2px 4px rgba(0,0,0,0.2)' : '0 0 1px rgba(0,0,0,0.1)' }}>Circle</span>
-                    </span>
-                    <p style={{ fontSize: '11px', color: dark ? 'rgba(255,255,255,0.4)' : 'var(--muted)', marginTop: 2 }}>Productivity Suite</p>
+                <div className="flex items-center gap-3">
+                    <img src="/logo zoom.png" alt="ProgressCircle Logo" style={{ width: 34, height: 34, objectFit: 'contain' }} />
+                    <div>
+                        <span style={{ fontFamily: 'Manrope,sans-serif', fontWeight: 800, fontSize: '1.2rem', color: dark ? '#fff' : 'var(--text)' }}>
+                            Progress<span style={{ color: dark ? '#fff' : 'var(--primary)', textShadow: dark ? '0 2px 4px rgba(0,0,0,0.2)' : '0 0 1px rgba(0,0,0,0.1)' }}>Circle</span>
+                        </span>
+                        <p style={{ fontSize: '11px', color: dark ? 'rgba(255,255,255,0.4)' : 'var(--muted)', marginTop: 0 }}>Productivity Suite</p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     {onClose && (
