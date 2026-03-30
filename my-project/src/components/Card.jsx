@@ -1,6 +1,7 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 
-export function Card({ children, className = '', hover = false, ...props }) {
+export const Card = memo(function Card({ children, className = '', hover = false, ...props }) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 8 }}
@@ -12,4 +13,4 @@ export function Card({ children, className = '', hover = false, ...props }) {
             {children}
         </motion.div>
     );
-}
+});

@@ -1,6 +1,7 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 
-export function StatCard({ label, value, icon: Icon, color = 'indigo', suffix = '', delay = 0 }) {
+export const StatCard = memo(function StatCard({ label, value, icon: Icon, color = 'indigo', suffix = '', delay = 0 }) {
     const colorMap = {
         indigo: 'var(--primary)',
         sky: 'rgb(14, 165, 233)',
@@ -35,4 +36,4 @@ export function StatCard({ label, value, icon: Icon, color = 'indigo', suffix = 
             </div>
         </motion.div>
     );
-}
+});

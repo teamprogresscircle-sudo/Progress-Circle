@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSEO } from '../hooks/useSEO';
 import { useData } from '../context/DataContext';
@@ -354,11 +355,21 @@ export function Leaderboard() {
                                     <p className="text-[9px] font-black uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.2)' }}>Remaining Operators</p>
                                     <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.05)' }} />
                                 </div>
-                                <div className="space-y-2">
-                                    {restArr.map((entry, i) => (
-                                        <ListCard key={entry.user?.id || i} entry={entry}
-                                            isMe={entry.user?.id === user?.id} index={i} />
-                                    ))}
+                                <div className="space-y-4 min-h-[400px]">
+                                    <Virtuoso
+                                        useWindowScroll
+                                        data={restArr}
+                                        totalCount={restArr.length}
+                                        itemContent={(i, entry) => (
+                                            <div className="pb-2">
+                                                <ListCard 
+                                                    entry={entry}
+                                                    isMe={entry.user?.id === user?.id} 
+                                                    index={i} 
+                                                />
+                                            </div>
+                                        )}
+                                    />
                                 </div>
                             </div>
                         )}

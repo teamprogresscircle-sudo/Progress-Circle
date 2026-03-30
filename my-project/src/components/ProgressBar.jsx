@@ -1,4 +1,6 @@
-export function ProgressBar({ progress = 0, color = 'indigo', showLabel = false, size = 'md' }) {
+import { memo } from 'react';
+
+export const ProgressBar = memo(function ProgressBar({ progress = 0, color = 'indigo', showLabel = false, size = 'md' }) {
     const clamp = Math.min(100, Math.max(0, progress));
 
     const gradients = {
@@ -31,4 +33,4 @@ export function ProgressBar({ progress = 0, color = 'indigo', showLabel = false,
             </div>
         </div>
     );
-}
+});

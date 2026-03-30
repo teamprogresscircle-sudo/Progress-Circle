@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
+import { Virtuoso } from 'react-virtuoso';
 import { useSEO } from '../hooks/useSEO';
 
 import { motion, AnimatePresence, Reorder, useDragControls } from 'framer-motion';
@@ -451,7 +452,7 @@ export function Tasks() {
 
             {filtered.length === 0 ? (
                 <EmptyState icon={CheckSquare} title="The horizon is clear" description="Start mapping out your next big move." />
-            ) : (
+            ) : filter === 'All' ? (
                 <Reorder.Group axis="y" values={filtered} onReorder={reorderTasks} className="space-y-4">
                     {filtered.map((task) => (
                         <TaskItem
@@ -463,6 +464,23 @@ export function Tasks() {
                         />
                     ))}
                 </Reorder.Group>
+            ) : (
+                <Virtuoso
+                    useWindowScroll
+                    data={filtered}
+                    totalCount={filtered.length}
+                    itemContent={(index, task) => (
+                        <div className="pb-4">
+                            <TaskItem
+                                task={task} tasks={tasks} categories={categories}
+                                expandedTasks={expandedTasks} toggleExpand={toggleExpand}
+                                handleComplete={handleComplete} updateTask={updateTask}
+                                openCreateModal={openCreateModal} openEditModal={openEditModal}
+                                handleDelete={handleDelete} filter={filter}
+                            />
+                        </div>
+                    )}
+                />
             )}
 
             <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editTask ? "Edit Task" : (form.isBigTask ? "New Project" : "New Task")}>

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { toast } from 'sonner';
 import dayjs from 'dayjs';
 import { tasksAPI } from '../api/tasksAPI';
@@ -74,7 +74,7 @@ export function DataProvider({ children }) {
     const normalizeId = (item) => ({ ...item, id: item._id });
 
     // ─── Tasks ─────────────────────────────────────────────────────────────────
-    const addTask = async (task) => {
+    const addTask = useCallback(async (task) => {
         // Put new tasks at the top
         const res = await tasksAPI.create({ ...task, position: 0 });
         const newTask = normalizeId(res.data.data);
@@ -85,24 +85,24 @@ export function DataProvider({ children }) {
             return updated;
         });
         if (refreshUser) await refreshUser();
-    };
+    }, [user?._id, user?.id, refreshUser]);
 
-    const updateTask = async (id, updates) => {
+    const updateTask = useCallback(async (id, updates) => {
         const res = await tasksAPI.update(id, updates);
         setTasks((prev) => prev.map((t) => (t.id === id ? normalizeId(res.data.data) : t)));
         if (updates.status && refreshUser) await refreshUser();
-    };
+    }, [refreshUser]);
 
-    const deleteTask = async (id) => {
+    const deleteTask = useCallback(async (id) => {
         await tasksAPI.delete(id);
         setTasks((prev) => {
             const updated = prev.filter((t) => t.id !== id);
             localStorage.setItem(`task_order_${user?._id || user?.id}`, JSON.stringify(updated.map(t => t.id)));
             return updated;
         });
-    };
+    }, [user?._id, user?.id]);
 
-    const reorderTasks = async (reorderedTasks) => {
+    const reorderTasks = useCallback(async (reorderedTasks) => {
         setTasks(reorderedTasks);
 
         // 1. Persist to LocalStorage for immediate cross-session reliability
@@ -123,49 +123,49 @@ export function DataProvider({ children }) {
             // LocalStorage fallback will still keep the order on this device
             toast.info('Saved locally - sync pending');
         }
-    };
+    }, [user?._id, user?.id]);
 
     // ─── Habits ─────────────────────────────────────────────────────────────
-    const addHabit = async (habit) => {
+    const addHabit = useCallback(async (habit) => {
         const res = await habitsAPI.create(habit);
         setHabits((prev) => [normalizeId(res.data.data), ...prev]);
-    };
+    }, []);
 
-    const toggleHabit = async (id) => {
+    const toggleHabit = useCallback(async (id) => {
         const res = await habitsAPI.toggle(id);
         const updated = normalizeId(res.data.data);
         setHabits((prev) => prev.map((h) => (h.id === id ? updated : h)));
         return updated;
-    };
+    }, []);
 
-    const deleteHabit = async (id) => {
+    const deleteHabit = useCallback(async (id) => {
         await habitsAPI.delete(id);
         setHabits((prev) => prev.filter((h) => h.id !== id));
-    };
+    }, []);
 
     // ─── Categories ──────────────────────────────────────────────────────────
-    const addCategory = async (data) => {
+    const addCategory = useCallback(async (data) => {
         const res = await categoriesAPI.create(data);
         setCategories((prev) => [normalizeId(res.data.data), ...prev]);
-    };
+    }, []);
 
-    const updateCategory = async (id, data) => {
+    const updateCategory = useCallback(async (id, data) => {
         const res = await categoriesAPI.update(id, data);
         setCategories((prev) => prev.map((c) => (c.id === id ? normalizeId(res.data.data) : c)));
-    };
+    }, []);
 
-    const deleteCategory = async (id) => {
+    const deleteCategory = useCallback(async (id) => {
         await categoriesAPI.delete(id);
         setCategories((prev) => prev.filter((c) => c.id !== id));
-    };
+    }, []);
 
     // ─── Sessions ────────────────────────────────────────────────────────────
-    const startSession = async (data) => {
+    const startSession = useCallback(async (data) => {
         const res = await sessionsAPI.start(data);
         setActiveSession(normalizeId(res.data.data.data));
-    };
+    }, []);
 
-    const endSession = async (notes, sessionId) => {
+    const endSession = useCallback(async (notes, sessionId) => {
         const sid = sessionId || activeSession?.id || activeSession?._id;
         if (!sid) return;
         const res = await sessionsAPI.end(sid, { notes });
@@ -178,14 +178,14 @@ export function DataProvider({ children }) {
         }
         await fetchAll();
         if (refreshUser) await refreshUser();
-    };
+    }, [activeSession?.id, activeSession?._id, fetchAll, refreshUser]);
 
-    const logManual = async (data) => {
+    const logManual = useCallback(async (data) => {
         await sessionsAPI.logManual(data);
         await fetchAll();
-    };
+    }, [fetchAll]);
 
-    const fetchCalendarEvents = async (start, end) => {
+    const fetchCalendarEvents = useCallback(async (start, end) => {
         const cacheKey = `${start}_${end}`;
         if (calendarCache[cacheKey]) {
             setCalendarEvents(calendarCache[cacheKey]);
@@ -200,9 +200,9 @@ export function DataProvider({ children }) {
         } catch (error) {
             console.error('Failed to fetch calendar events:', error);
         }
-    };
+    }, [calendarCache]);
 
-    const addCalendarBlock = async (data) => {
+    const addCalendarBlock = useCallback(async (data) => {
         await calendarAPI.createBlock(data);
         setCalendarCache({}); // Invalidate cache
         const refreshDate = data.startTime || data.date || dayjs();
@@ -210,27 +210,35 @@ export function DataProvider({ children }) {
         const end = dayjs(refreshDate).endOf('month').toISOString();
         await fetchCalendarEvents(start, end);
         await refreshUser();
-    };
+    }, [fetchCalendarEvents, refreshUser]);
 
-    const deleteCalendarBlock = async (id) => {
+    const deleteCalendarBlock = useCallback(async (id) => {
         const blockId = id.includes('-') ? id.split('-')[1] : id;
         await calendarAPI.deleteBlock(blockId);
         setCalendarCache({}); // Invalidate cache
         await fetchAll();
-    };
+    }, [fetchAll]);
+
+    const contextValue = useMemo(() => ({
+        tasks, habits, categories, leaderboard, sessions, calendarEvents,
+        addTask, updateTask, deleteTask, reorderTasks,
+        addHabit, toggleHabit, deleteHabit,
+        addCategory, updateCategory, deleteCategory,
+        activeSession, startSession, endSession, logManual,
+        addCalendarBlock, deleteCalendarBlock, fetchCalendarEvents,
+        refreshData: fetchAll,
+    }), [
+        tasks, habits, categories, leaderboard, sessions, calendarEvents, activeSession,
+        addTask, updateTask, deleteTask, reorderTasks,
+        addHabit, toggleHabit, deleteHabit,
+        addCategory, updateCategory, deleteCategory,
+        startSession, endSession, logManual,
+        addCalendarBlock, deleteCalendarBlock, fetchCalendarEvents,
+        fetchAll
+    ]);
 
     return (
-        <DataContext.Provider
-            value={{
-                tasks, habits, categories, leaderboard, sessions, calendarEvents,
-                addTask, updateTask, deleteTask, reorderTasks,
-                addHabit, toggleHabit, deleteHabit,
-                addCategory, updateCategory, deleteCategory,
-                activeSession, startSession, endSession, logManual,
-                addCalendarBlock, deleteCalendarBlock, fetchCalendarEvents,
-                refreshData: fetchAll,
-            }}
-        >
+        <DataContext.Provider value={contextValue}>
             {children}
         </DataContext.Provider>
     );

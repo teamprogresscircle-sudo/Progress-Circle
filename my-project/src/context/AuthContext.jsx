@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { authAPI } from '../api/authAPI';
 
 const AuthContext = createContext(undefined);
@@ -27,37 +27,37 @@ export function AuthProvider({ children }) {
         restoreSession();
     }, []);
 
-    const login = async (email, password) => {
+    const login = useCallback(async (email, password) => {
         const res = await authAPI.login(email, password);
         const { token, user: userData } = res.data.data;
         localStorage.setItem('token', token);
         setUser(userData);
-    };
+    }, []);
 
-    const register = async (name, email, password, gender = '', ref = '') => {
+    const register = useCallback(async (name, email, password, gender = '', ref = '') => {
         const res = await authAPI.register(name, email, password, gender, ref);
-        return res.data; // Return the response so Login.jsx can handle the next step
-    };
+        return res.data;
+    }, []);
 
-    const verifyEmail = async (email, code) => {
+    const verifyEmail = useCallback(async (email, code) => {
         const res = await authAPI.verify(email, code);
         const { token, user: userData } = res.data.data;
         localStorage.setItem('token', token);
         setUser(userData);
         return res.data;
-    };
+    }, []);
 
-    const resendVerificationCode = async (email) => {
+    const resendVerificationCode = useCallback(async (email) => {
         const res = await authAPI.resendCode(email);
         return res.data;
-    };
+    }, []);
 
-    const logout = () => {
+    const logout = useCallback(() => {
         localStorage.removeItem('token');
         setUser(null);
-    };
+    }, []);
 
-    const refreshUser = async () => {
+    const refreshUser = useCallback(async () => {
         try {
             const res = await authAPI.getMe();
             setUser(res.data.data);
@@ -65,13 +65,26 @@ export function AuthProvider({ children }) {
         } catch (error) {
             console.error('Failed to refresh user:', error);
         }
-    };
+    }, []);
 
-    const updateUser = async (data) => {
+    const updateUser = useCallback(async (data) => {
         const res = await authAPI.updateMe(data);
         setUser(res.data.data);
         return res.data.data;
-    };
+    }, []);
+
+    const contextValue = useMemo(() => ({
+        user,
+        setUser,
+        login,
+        register,
+        verifyEmail,
+        resendVerificationCode,
+        logout,
+        refreshUser,
+        updateUser,
+        isAuthenticated: !!user
+    }), [user, login, register, verifyEmail, resendVerificationCode, logout, refreshUser, updateUser]);
 
     // Show nothing while we're restoring the session
     if (loading) {
@@ -83,10 +96,7 @@ export function AuthProvider({ children }) {
     }
 
     return (
-        <AuthContext.Provider value={{ 
-            user, setUser, login, register, verifyEmail, resendVerificationCode, 
-            logout, refreshUser, updateUser, isAuthenticated: !!user 
-        }}>
+        <AuthContext.Provider value={contextValue}>
             {children}
         </AuthContext.Provider>
     );

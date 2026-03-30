@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from './AuthContext';
 
 const ThemeContext = createContext(undefined);
@@ -67,31 +67,36 @@ export function ThemeProvider({ children }) {
         root.style.setProperty('--text', theme.text || currentDefaults.text);
     }, [dark, theme]);
 
-    const toggleDark = () => {
+    const toggleDark = useCallback(() => {
         const newDark = !dark;
         setDark(newDark);
         setTheme(prev => ({ ...prev, bg: '', surface: '', surface2: '', mode: newDark ? 'dark' : 'light' }));
-    };
+    }, [dark]);
     
-    const updateTheme = (newTheme) => {
+    const updateTheme = useCallback((newTheme) => {
         setTheme(prev => ({ ...prev, ...newTheme }));
         if (newTheme.mode) {
             setDark(newTheme.mode === 'dark');
         }
-    };
+    }, []);
 
-    const resetToDefaults = () => {
+    const resetToDefaults = useCallback(() => {
         const currentDefaults = dark ? DEFAULTS.dark : DEFAULTS.light;
-        setTheme({
+        const newTheme = {
             ...currentDefaults,
             mode: dark ? 'dark' : 'light',
             glassmorphism: true
-        });
-        return { ...currentDefaults, mode: dark ? 'dark' : 'light', glassmorphism: true };
-    };
+        };
+        setTheme(newTheme);
+        return newTheme;
+    }, [dark]);
+
+    const contextValue = useMemo(() => ({
+        dark, toggleDark, theme, updateTheme, resetToDefaults
+    }), [dark, toggleDark, theme, updateTheme, resetToDefaults]);
 
     return (
-        <ThemeContext.Provider value={{ dark, toggleDark, theme, updateTheme, resetToDefaults }}>
+        <ThemeContext.Provider value={contextValue}>
             {children}
         </ThemeContext.Provider>
     );

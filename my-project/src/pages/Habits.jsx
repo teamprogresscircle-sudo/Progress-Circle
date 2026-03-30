@@ -1,4 +1,5 @@
 import { useState, useMemo, memo, useEffect } from 'react';
+import { VirtuosoGrid } from 'react-virtuoso';
 import { useSEO } from '../hooks/useSEO';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Repeat, Trash2, CheckCircle2, Circle, Calendar, Clock, Sparkles, MoreHorizontal, Tag } from 'lucide-react';
@@ -820,12 +821,12 @@ export function Habits() {
             {habits.length === 0 ? (
                 <EmptyState icon={Repeat} title="No active loops" description="Consistency is the key to mastery. Start a new habit today." />
             ) : (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))',
-                    gap: 20,
-                }}>
-                    {habits.map((habit, i) => {
+                <VirtuosoGrid
+                    useWindowScroll
+                    data={habits}
+                    totalCount={habits.length}
+                    listClassName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-5"
+                    itemContent={(i, habit) => {
                         const category = habit.categoryId?._id ? habit.categoryId : categories?.find(c => c.id === habit.categoryId);
                         const habitColor = category?.color || 'var(--primary)';
                         const customColorScheme = {
@@ -844,8 +845,8 @@ export function Habits() {
                                 onDelete={handleDelete}
                             />
                         );
-                    })}
-                </div>
+                    }}
+                />
             )}
 
             {/* ─── Modal ────────────────────────────── */}

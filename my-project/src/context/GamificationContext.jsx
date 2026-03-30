@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { gamificationAPI } from '../api/gamificationAPI';
 import { useAuth } from './AuthContext';
 import { useData } from './DataContext';
@@ -26,22 +26,26 @@ export function GamificationProvider({ children }) {
 
     useEffect(() => { refresh(); }, [refresh]);
 
-    const saveAvatar = async (config) => {
+    const saveAvatar = useCallback(async (config) => {
         await gamificationAPI.saveAvatar(config);
         await refresh();
         if (refreshUser) await refreshUser();
         if (refreshData) await refreshData();
-    };
+    }, [refresh, refreshUser, refreshData]);
 
-    const buyItem = async (itemId) => {
+    const buyItem = useCallback(async (itemId) => {
         await gamificationAPI.buyItem(itemId);
         await refresh();
         if (refreshUser) await refreshUser();
         if (refreshData) await refreshData();
-    };
+    }, [refresh, refreshUser, refreshData]);
+
+    const contextValue = useMemo(() => ({
+        gamData, loading, refresh, saveAvatar, buyItem
+    }), [gamData, loading, refresh, saveAvatar, buyItem]);
 
     return (
-        <GamificationContext.Provider value={{ gamData, loading, refresh, saveAvatar, buyItem }}>
+        <GamificationContext.Provider value={contextValue}>
             {children}
         </GamificationContext.Provider>
     );
