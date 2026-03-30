@@ -41,7 +41,7 @@ export function Landing() {
         yearly: '1299'
     });
 
-    useSEO('ProgressCircle | Modern Productivity & Habit Tracking', 'A clean, high-performance ecosystem for focusing on what matters. Track tasks, build habits, and grow your digital legacy.');
+    useSEO('ProgressCircle | Elite Productivity & Habit Tracking', 'A clean, high-performance ecosystem for focusing on what matters. Track tasks, build habits, and grow your digital legacy.');
     const location = useLocation();
 
     // Capture referral code from URL

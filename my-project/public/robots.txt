@@ -10,4 +10,4 @@ Disallow: /payment-success
 Disallow: /battle/
 
 # Point to sitemap for full site index
-Sitemap: https://progress-circle-theta.vercel.app/sitemap.xml
+Sitemap: https://progress-circle-ochre.vercel.app/sitemap.xml
