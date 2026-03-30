@@ -79,7 +79,7 @@ export function SidebarContent({ onClose }) {
             <div style={{ padding: '20px 24px 16px', borderBottom: dark ? '1px solid rgba(255,255,255,0.1)' : '1px solid var(--border)' }} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                     <div style={{ width: 34, height: 34, borderRadius: '50%', background: dark ? 'rgba(var(--primary-rgb), 0.1)' : 'var(--primary-light)', border: dark ? '1px solid rgba(var(--primary-rgb), 0.2)' : '1px solid var(--primary-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-                        <img src="/logo.png" alt="ProgressCircle Logo" className="rounded-full" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src="/logo.svg" alt="ProgressCircle Logo" className="rounded-full" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     </div>
                     <div>
                         <span style={{ fontFamily: 'Manrope,sans-serif', fontWeight: 800, fontSize: '1.2rem', color: dark ? '#fff' : 'var(--text)' }}>

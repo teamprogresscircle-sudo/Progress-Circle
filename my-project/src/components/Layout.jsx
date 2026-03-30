@@ -145,7 +145,7 @@ export function Layout({ children }) {
                                 inset: 0,
                                 background: 'rgba(0, 0, 0, 0.4)',
                                 backdropFilter: 'blur(4px)',
-                                zIndex: 50
+                                zIndex: 65
                             }}
                         />
                         <motion.div
@@ -159,12 +159,12 @@ export function Layout({ children }) {
                                 left: 0,
                                 bottom: 0,
                                 width: '280px',
-                                zIndex: 55,
+                                zIndex: 70,
                                 background: 'var(--surface)',
                                 boxShadow: '10px 0 30px rgba(0,0,0,0.1)'
                             }}
                         >
-                            <SidebarContent onClose={() => setIsMobileMenuOpen(false)} />
+                            <SidebarContent onClose={() => setIsMobileMenuOpen(false)} onQuickAdd={() => setQuickAddOpen(true)} />
                         </motion.div>
                     </>
                 )}

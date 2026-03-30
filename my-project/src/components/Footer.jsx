@@ -36,12 +36,12 @@ export function Footer() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-16 mb-24">
                     {/* Branding Column */}
                     <div className="lg:col-span-2 space-y-8">
-                        <div className="flex items-center gap-3 group cursor-pointer" onClick={() => {
+                        <div className="flex items-center gap-3 cursor-pointer group" onClick={() => {
                             window.scrollTo({ top: 0, behavior: 'smooth' });
                             navigate('/');
                         }}>
-                            <div className="w-10 h-10 bg-white/[0.03] border border-white/[0.08] rounded-full flex items-center justify-center transition-all group-hover:bg-white/5 overflow-hidden">
-                                <img src="/logo.png" alt="ProgressCircle Logo" className="rounded-full" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div className="w-10 h-10 bg-white/[0.03] border border-white/[0.08] rounded-full flex items-center justify-center transition-all duration-500 group-hover:bg-white/[0.07] overflow-hidden">
+                                <img src="/logo.svg" alt="Logo" className="w-full h-full object-cover shadow-lg shadow-indigo-500/20" />
                             </div>
                             <span className="font-sans font-bold text-xl tracking-tight text-white">ProgressCircle</span>
                         </div>

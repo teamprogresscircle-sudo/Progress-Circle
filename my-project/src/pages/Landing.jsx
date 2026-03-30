@@ -107,7 +107,7 @@ export function Landing() {
                 <div className="max-w-[1600px] mx-auto px-10 flex items-center justify-between">
                     <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigate('/')}>
                         <div className="w-10 h-10 bg-white/[0.03] border border-white/[0.08] rounded-full flex items-center justify-center transition-all duration-500 group-hover:bg-white/[0.07] overflow-hidden">
-                            <img src="/logo.png" alt="Logo" className="rounded-full" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <img src="/logo.svg" alt="ProgressCircle Logo" className="w-full h-full object-cover shadow-lg shadow-indigo-500/20" />
                         </div>
                         <span className="font-outfit font-bold text-xl tracking-tight text-white">
                             ProgressCircle
