@@ -43,8 +43,8 @@ export default function Pricing() {
     const token = localStorage.getItem('token');
     const navigate = useNavigate();
 
-    const INSTAPAY_HANDLE = "progresscircle@instapay"; // Placeholder, change as needed
-    const TELDA_HANDLE = "@progresscircle"; // Placeholder, change as needed
+    const INSTAPAY_HANDLE = "youssefmohamed-0547@instapay"; 
+    const TELDA_HANDLE = "@youssef05ahmed"; 
     const INSTAGRAM_URL = "https://www.instagram.com/team.progresscircle/"; 
 
     useEffect(() => {
